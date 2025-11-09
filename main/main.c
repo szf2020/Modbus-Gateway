@@ -1518,6 +1518,10 @@ static bool send_telemetry(void) {
     if (!mqtt_connected) {
         ESP_LOGW(TAG, "[WARN]  MQTT not connected");
 
+        // Debug: Log SD configuration status
+        ESP_LOGI(TAG, "[SD] DEBUG: SD enabled=%d, cache_on_failure=%d",
+                 config->sd_config.enabled, config->sd_config.cache_on_failure);
+
         // If SD card caching is enabled, cache the telemetry
         if (config->sd_config.enabled && config->sd_config.cache_on_failure) {
             ESP_LOGI(TAG, "[SD] 💾 Caching telemetry to SD card (MQTT disconnected)...");
@@ -1536,6 +1540,12 @@ static bool send_telemetry(void) {
                 } else {
                     ESP_LOGE(TAG, "[SD] ❌ Failed to cache telemetry: %s", esp_err_to_name(ret));
                 }
+            }
+        } else {
+            if (!config->sd_config.enabled) {
+                ESP_LOGW(TAG, "[SD] SD card is DISABLED in configuration - enable it in web portal");
+            } else if (!config->sd_config.cache_on_failure) {
+                ESP_LOGW(TAG, "[SD] SD caching is DISABLED - enable 'Cache Messages When Network Unavailable' in web portal");
             }
         }
 
