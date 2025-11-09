@@ -666,9 +666,8 @@ static int initialize_mqtt_client(void) {
         ESP_LOGE(TAG, "Failed to generate SAS token");
         return -1;
     }
-    
-    // Get dynamic configuration
-    system_config_t* config = get_system_config();
+
+    // Use config from earlier declaration (already loaded at start of function)
     ESP_LOGI(TAG, "[DYNAMIC CONFIG] Loading Azure credentials from web configuration");
     ESP_LOGI(TAG, "[DYNAMIC CONFIG] Device ID: %s", config->azure_device_id);
     ESP_LOGI(TAG, "[DYNAMIC CONFIG] Device Key Length: %d", strlen(config->azure_device_key));
