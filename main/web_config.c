@@ -1253,7 +1253,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "<option value='57600' %s>57600</option>"
         "<option value='115200' %s>115200</option>"
         "</select><br><br>"
-        "<button type='button' onclick='testSIMConnection()' style='background:#17a2b8;color:white;padding:10px 15px;border:none;border-radius:4px;font-weight:bold;margin-right:10px'>Test SIM Connection</button>"
+        "<button type='button' onclick='testSIMConnection()' style='background:#17a2b8;color:white;padding:10px 15px;border:none;border-radius:4px;font-weight:bold;margin-right:10px'>Validate SIM Configuration</button>"
         "<div id='sim_test_result' style='margin-top:10px;padding:10px;border-radius:4px;display:none'></div>"
         "</div>"
         "<div style='background:#d4edda;padding:12px;margin:15px 0;border-radius:5px;border:1px solid #c3e6cb'>"
@@ -2307,22 +2307,31 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "}"
         "function testSIMConnection(){"
         "const result=document.getElementById('sim_test_result');"
-        "result.innerHTML='Testing SIM connection...';"
+        "result.innerHTML='Validating SIM configuration...';"
         "result.style.display='block';"
         "result.style.backgroundColor='#fff3cd';"
         "fetch('/api/sim_test',{method:'POST'})"
         ".then(r=>r.json())"
         ".then(data=>{"
         "if(data.success){"
-        "result.innerHTML='<span style=\"color:#155724\">SIM connected! Signal: '+data.signal+' dBm, Operator: '+data.operator+'</span>';"
+        "let msg='<div style=\"color:#155724\"><strong>✅ Configuration Valid!</strong><br>';"
+        "msg+='<div style=\"margin-top:8px;font-size:13px\">';"
+        "msg+='APN: <strong>'+data.apn+'</strong><br>';"
+        "msg+='UART TX: GPIO '+data.uart_tx+' | RX: GPIO '+data.uart_rx+'<br>';"
+        "msg+='Power Pin: GPIO '+data.pwr_pin+' | Baud: '+data.baud+'<br>';"
+        "if(data.info){"
+        "msg+='<div style=\"margin-top:8px;padding:8px;background:#e7f3ff;border-left:3px solid #17a2b8;color:#0c5460\">ℹ️ '+data.info+'</div>';"
+        "}"
+        "msg+='</div></div>';"
+        "result.innerHTML=msg;"
         "result.style.backgroundColor='#d4edda';"
         "}else{"
-        "result.innerHTML='<span style=\"color:#721c24\">SIM connection failed: '+data.error+'</span>';"
+        "result.innerHTML='<span style=\"color:#721c24\">❌ Configuration Error: '+data.error+'</span>';"
         "result.style.backgroundColor='#f8d7da';"
         "}"
         "})"
         ".catch(err=>{"
-        "result.innerHTML='<span style=\"color:#721c24\">Test failed: '+err+'</span>';"
+        "result.innerHTML='<span style=\"color:#721c24\">❌ Validation failed: '+err+'</span>';"
         "result.style.backgroundColor='#f8d7da';"
         "});"
         "}"
@@ -7298,49 +7307,74 @@ static esp_err_t save_rtc_config_handler(httpd_req_t *req) {
 static esp_err_t api_sim_test_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
 
-    ESP_LOGI(TAG, "SIM test requested - initializing modem for test...");
+    ESP_LOGI(TAG, "SIM configuration validation requested");
 
-    // Build modem configuration from system config
-    ppp_config_t modem_config = {
-        .apn = g_system_config.sim_config.apn,
-        .user = g_system_config.sim_config.apn_user,
-        .pass = g_system_config.sim_config.apn_pass,
-        .uart_num = g_system_config.sim_config.uart_num,
-        .tx_pin = g_system_config.sim_config.uart_tx_pin,
-        .rx_pin = g_system_config.sim_config.uart_rx_pin,
-        .pwr_pin = g_system_config.sim_config.pwr_pin,
-        .reset_pin = g_system_config.sim_config.reset_pin,
-        .baud_rate = g_system_config.sim_config.uart_baud_rate
-    };
+    // Validate configuration
+    char response[512];
+    bool config_valid = true;
+    char error_msg[256] = "";
 
-    // Initialize modem (this will setup UART)
-    esp_err_t init_ret = a7670c_ppp_init(&modem_config);
-    if (init_ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize modem for test: %s", esp_err_to_name(init_ret));
-        httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Failed to initialize modem UART\"}");
+    // Check APN is configured
+    if (strlen(g_system_config.sim_config.apn) == 0) {
+        config_valid = false;
+        strncpy(error_msg, "APN not configured", sizeof(error_msg));
+    }
+
+    // Validate GPIO pins
+    if (g_system_config.sim_config.uart_tx_pin < 0 || g_system_config.sim_config.uart_tx_pin > 39) {
+        config_valid = false;
+        snprintf(error_msg, sizeof(error_msg), "Invalid TX pin: %d", g_system_config.sim_config.uart_tx_pin);
+    }
+
+    if (g_system_config.sim_config.uart_rx_pin < 0 || g_system_config.sim_config.uart_rx_pin > 39) {
+        config_valid = false;
+        snprintf(error_msg, sizeof(error_msg), "Invalid RX pin: %d", g_system_config.sim_config.uart_rx_pin);
+    }
+
+    if (g_system_config.sim_config.pwr_pin < 0 || g_system_config.sim_config.pwr_pin > 39) {
+        config_valid = false;
+        snprintf(error_msg, sizeof(error_msg), "Invalid PWR pin: %d", g_system_config.sim_config.pwr_pin);
+    }
+
+    // Validate baud rate
+    if (g_system_config.sim_config.uart_baud_rate != 9600 &&
+        g_system_config.sim_config.uart_baud_rate != 19200 &&
+        g_system_config.sim_config.uart_baud_rate != 38400 &&
+        g_system_config.sim_config.uart_baud_rate != 57600 &&
+        g_system_config.sim_config.uart_baud_rate != 115200) {
+        config_valid = false;
+        snprintf(error_msg, sizeof(error_msg), "Invalid baud rate: %d", g_system_config.sim_config.uart_baud_rate);
+    }
+
+    if (!config_valid) {
+        snprintf(response, sizeof(response),
+                 "{\"success\":false,\"error\":\"%s\"}", error_msg);
+        httpd_resp_sendstr(req, response);
         return ESP_OK;
     }
 
-    // Give modem time to power up and stabilize
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    // Configuration is valid - provide success message with details
+    snprintf(response, sizeof(response),
+             "{\"success\":true,"
+             "\"message\":\"Configuration validated successfully\","
+             "\"apn\":\"%s\","
+             "\"uart_tx\":%d,"
+             "\"uart_rx\":%d,"
+             "\"pwr_pin\":%d,"
+             "\"baud\":%d,"
+             "\"info\":\"Switch to Operation Mode to test actual SIM connectivity (takes ~15 seconds for full modem initialization)\"}",
+             g_system_config.sim_config.apn,
+             g_system_config.sim_config.uart_tx_pin,
+             g_system_config.sim_config.uart_rx_pin,
+             g_system_config.sim_config.pwr_pin,
+             g_system_config.sim_config.uart_baud_rate);
 
-    // Now try to get signal strength
-    signal_strength_t signal;
-    esp_err_t ret = a7670c_get_signal_strength(&signal);
-
-    if (ret == ESP_OK && signal.rssi_dbm != 0) {
-        char response[256];
-        snprintf(response, sizeof(response),
-                 "{\"success\":true,\"signal\":%d,\"operator\":\"%s\"}",
-                 signal.rssi_dbm, signal.operator_name);
-        httpd_resp_sendstr(req, response);
-    } else {
-        httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"SIM module not responding or no signal\"}");
-    }
-
-    // Clean up - deinitialize modem (we're in config mode, not operation mode)
-    a7670c_ppp_deinit();
-    ESP_LOGI(TAG, "SIM test completed, modem deinitialized");
+    httpd_resp_sendstr(req, response);
+    ESP_LOGI(TAG, "SIM configuration validated: APN=%s, UART TX=%d, RX=%d, Baud=%d",
+             g_system_config.sim_config.apn,
+             g_system_config.sim_config.uart_tx_pin,
+             g_system_config.sim_config.uart_rx_pin,
+             g_system_config.sim_config.uart_baud_rate);
 
     return ESP_OK;
 }
