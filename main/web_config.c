@@ -1258,6 +1258,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "</div>"
         "<div style='background:#d4edda;padding:12px;margin:15px 0;border-radius:5px;border:1px solid #c3e6cb'>"
         "<button type='submit' style='background:#28a745;color:white;padding:10px 15px;border:none;border-radius:4px;font-weight:bold'>Save SIM Configuration</button>"
+        "<div id='sim_save_result' style='margin-top:10px;padding:10px;border-radius:4px;display:none;border:1px solid'></div>"
         "</div>"
         "</form>"
         "</div>"
@@ -1338,6 +1339,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "</div>"
         "<div style='background:#d4edda;padding:12px;margin:15px 0;border-radius:5px;border:1px solid #c3e6cb'>"
         "<button type='submit' style='background:#28a745;color:white;padding:10px 15px;border:none;border-radius:4px;font-weight:bold'>Save SD Card Configuration</button>"
+        "<div id='sd_save_result' style='margin-top:10px;padding:10px;border-radius:4px;display:none;border:1px solid'></div>"
         "</div>"
         "</form>"
         "</div>",
@@ -1404,6 +1406,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "</div>"
         "<div style='background:#d4edda;padding:12px;margin:15px 0;border-radius:5px;border:1px solid #c3e6cb'>"
         "<button type='submit' style='background:#28a745;color:white;padding:10px 15px;border:none;border-radius:4px;font-weight:bold'>Save RTC Configuration</button>"
+        "<div id='rtc_save_result' style='margin-top:10px;padding:10px;border-radius:4px;display:none;border:1px solid'></div>"
         "</div>"
         "</form>"
         "</div>",
@@ -2426,16 +2429,33 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "formData.append('sd_clk',document.getElementById('sd_clk').value);"
         "formData.append('sd_cs',document.getElementById('sd_cs').value);"
         "formData.append('sd_spi_host',document.getElementById('sd_spi_host').value);"
+        "const resultDiv=document.getElementById('sd_save_result');"
+        "resultDiv.innerHTML='<span style=\"color:#856404\">Saving SD Card configuration...</span>';"
+        "resultDiv.style.display='block';"
+        "resultDiv.style.backgroundColor='#fff3cd';"
+        "resultDiv.style.borderColor='#ffeaa7';"
+        "resultDiv.style.color='#856404';"
         "fetch('/save_sd_config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:formData})"
         ".then(r=>r.json())"
         ".then(data=>{"
         "if(data.status==='success'){"
-        "alert('SUCCESS: SD Card configuration saved!\\n\\nSettings have been updated.');"
+        "resultDiv.innerHTML='<span style=\"color:#28a745\">✅ '+data.message+'</span>';"
+        "resultDiv.style.backgroundColor='#d4edda';"
+        "resultDiv.style.borderColor='#c3e6cb';"
+        "resultDiv.style.color='#155724';"
         "}else{"
-        "alert('ERROR: '+data.message);"
+        "resultDiv.innerHTML='<span style=\"color:#dc3545\">❌ Error: '+data.message+'</span>';"
+        "resultDiv.style.backgroundColor='#f8d7da';"
+        "resultDiv.style.borderColor='#f5c6cb';"
+        "resultDiv.style.color='#721c24';"
         "}"
         "})"
-        ".catch(e=>{alert('ERROR: Save failed - '+e.message);});"
+        ".catch(e=>{"
+        "resultDiv.innerHTML='<span style=\"color:#dc3545\">❌ Network Error: '+e.message+'</span>';"
+        "resultDiv.style.backgroundColor='#f8d7da';"
+        "resultDiv.style.borderColor='#f5c6cb';"
+        "resultDiv.style.color='#721c24';"
+        "});"
         "return false;"
         "}"
         "function saveRTCConfig(){"
@@ -2446,16 +2466,33 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "formData.append('rtc_sda',document.getElementById('rtc_sda').value);"
         "formData.append('rtc_scl',document.getElementById('rtc_scl').value);"
         "formData.append('rtc_i2c_num',document.getElementById('rtc_i2c_num').value);"
+        "const resultDiv=document.getElementById('rtc_save_result');"
+        "resultDiv.innerHTML='<span style=\"color:#856404\">Saving RTC configuration...</span>';"
+        "resultDiv.style.display='block';"
+        "resultDiv.style.backgroundColor='#fff3cd';"
+        "resultDiv.style.borderColor='#ffeaa7';"
+        "resultDiv.style.color='#856404';"
         "fetch('/save_rtc_config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:formData})"
         ".then(r=>r.json())"
         ".then(data=>{"
         "if(data.status==='success'){"
-        "alert('SUCCESS: RTC configuration saved!\\n\\nSettings have been updated.');"
+        "resultDiv.innerHTML='<span style=\"color:#28a745\">✅ '+data.message+'</span>';"
+        "resultDiv.style.backgroundColor='#d4edda';"
+        "resultDiv.style.borderColor='#c3e6cb';"
+        "resultDiv.style.color='#155724';"
         "}else{"
-        "alert('ERROR: '+data.message);"
+        "resultDiv.innerHTML='<span style=\"color:#dc3545\">❌ Error: '+data.message+'</span>';"
+        "resultDiv.style.backgroundColor='#f8d7da';"
+        "resultDiv.style.borderColor='#f5c6cb';"
+        "resultDiv.style.color='#721c24';"
         "}"
         "})"
-        ".catch(e=>{alert('ERROR: Save failed - '+e.message);});"
+        ".catch(e=>{"
+        "resultDiv.innerHTML='<span style=\"color:#dc3545\">❌ Network Error: '+e.message+'</span>';"
+        "resultDiv.style.backgroundColor='#f8d7da';"
+        "resultDiv.style.borderColor='#f5c6cb';"
+        "resultDiv.style.color='#721c24';"
+        "});"
         "return false;"
         "}"
         "function saveSIMConfig(){"
@@ -2469,16 +2506,33 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "formData.append('sim_pwr_pin',document.getElementById('sim_pwr_pin').value);"
         "formData.append('sim_reset_pin',document.getElementById('sim_reset_pin').value);"
         "formData.append('sim_baud',document.getElementById('sim_baud').value);"
+        "const resultDiv=document.getElementById('sim_save_result');"
+        "resultDiv.innerHTML='<span style=\"color:#856404\">Saving SIM configuration...</span>';"
+        "resultDiv.style.display='block';"
+        "resultDiv.style.backgroundColor='#fff3cd';"
+        "resultDiv.style.borderColor='#ffeaa7';"
+        "resultDiv.style.color='#856404';"
         "fetch('/save_sim_config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:formData})"
         ".then(r=>r.json())"
         ".then(data=>{"
         "if(data.status==='success'){"
-        "alert('SUCCESS: SIM configuration saved!\\n\\nSettings have been updated.');"
+        "resultDiv.innerHTML='<span style=\"color:#28a745\">✅ '+data.message+'</span>';"
+        "resultDiv.style.backgroundColor='#d4edda';"
+        "resultDiv.style.borderColor='#c3e6cb';"
+        "resultDiv.style.color='#155724';"
         "}else{"
-        "alert('ERROR: '+data.message);"
+        "resultDiv.innerHTML='<span style=\"color:#dc3545\">❌ Error: '+data.message+'</span>';"
+        "resultDiv.style.backgroundColor='#f8d7da';"
+        "resultDiv.style.borderColor='#f5c6cb';"
+        "resultDiv.style.color='#721c24';"
         "}"
         "})"
-        ".catch(e=>{alert('ERROR: Save failed - '+e.message);});"
+        ".catch(e=>{"
+        "resultDiv.innerHTML='<span style=\"color:#dc3545\">❌ Network Error: '+e.message+'</span>';"
+        "resultDiv.style.backgroundColor='#f8d7da';"
+        "resultDiv.style.borderColor='#f5c6cb';"
+        "resultDiv.style.color='#721c24';"
+        "});"
         "return false;"
         "}"
         "function saveAzureConfig(){"
@@ -7244,6 +7298,33 @@ static esp_err_t save_rtc_config_handler(httpd_req_t *req) {
 static esp_err_t api_sim_test_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
 
+    ESP_LOGI(TAG, "SIM test requested - initializing modem for test...");
+
+    // Build modem configuration from system config
+    ppp_config_t modem_config = {
+        .apn = g_system_config.sim_config.apn,
+        .user = g_system_config.sim_config.apn_user,
+        .pass = g_system_config.sim_config.apn_pass,
+        .uart_num = g_system_config.sim_config.uart_num,
+        .tx_pin = g_system_config.sim_config.tx_pin,
+        .rx_pin = g_system_config.sim_config.rx_pin,
+        .pwr_pin = g_system_config.sim_config.pwr_pin,
+        .reset_pin = g_system_config.sim_config.reset_pin,
+        .baud_rate = g_system_config.sim_config.baud_rate
+    };
+
+    // Initialize modem (this will setup UART)
+    esp_err_t init_ret = a7670c_ppp_init(&modem_config);
+    if (init_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize modem for test: %s", esp_err_to_name(init_ret));
+        httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Failed to initialize modem UART\"}");
+        return ESP_OK;
+    }
+
+    // Give modem time to power up and stabilize
+    vTaskDelay(pdMS_TO_TICKS(2000));
+
+    // Now try to get signal strength
     signal_strength_t signal;
     esp_err_t ret = a7670c_get_signal_strength(&signal);
 
@@ -7254,8 +7335,13 @@ static esp_err_t api_sim_test_handler(httpd_req_t *req) {
                  signal.rssi_dbm, signal.operator_name);
         httpd_resp_sendstr(req, response);
     } else {
-        httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"SIM module not responding\"}");
+        httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"SIM module not responding or no signal\"}");
     }
+
+    // Clean up - deinitialize modem (we're in config mode, not operation mode)
+    a7670c_ppp_deinit();
+    ESP_LOGI(TAG, "SIM test completed, modem deinitialized");
+
     return ESP_OK;
 }
 
