@@ -6,7 +6,7 @@
 #define IOT_CONFIG_WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
 
 // Azure IoT Hub Configuration (Replace with your Azure IoT Hub credentials)
-#define IOT_CONFIG_IOTHUB_FQDN "your-iothub-name.azure-devices.net"
+#define IOT_CONFIG_IOTHUB_FQDN "fluxgen-testhub.azure-devices.net"
 #define IOT_CONFIG_DEVICE_ID "your-device-id"
 #define IOT_CONFIG_DEVICE_KEY "YOUR_DEVICE_KEY_HERE"
 
