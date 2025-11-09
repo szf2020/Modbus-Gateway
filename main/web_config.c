@@ -6228,6 +6228,24 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
         s_wifi_retry_count = 0;  // Reset retry counter on successful connection
+
+        // Set DNS servers explicitly (in case DHCP didn't provide them)
+        // This is critical for Azure IoT Hub connectivity
+        esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+        if (netif) {
+            esp_netif_dns_info_t dns_info;
+
+            // Set primary DNS (Google DNS)
+            dns_info.ip.u_addr.ip4.addr = ESP_IP4TOADDR(8, 8, 8, 8);
+            dns_info.ip.type = ESP_IPADDR_TYPE_V4;
+            esp_netif_set_dns_info(netif, ESP_NETIF_DNS_MAIN, &dns_info);
+
+            // Set backup DNS (Google DNS)
+            dns_info.ip.u_addr.ip4.addr = ESP_IP4TOADDR(8, 8, 4, 4);
+            esp_netif_set_dns_info(netif, ESP_NETIF_DNS_BACKUP, &dns_info);
+
+            ESP_LOGI(TAG, "DNS servers configured: 8.8.8.8 (primary), 8.8.4.4 (backup)");
+        }
     }
 }
 
