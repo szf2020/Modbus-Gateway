@@ -1516,7 +1516,30 @@ static bool send_telemetry(void) {
     }
 
     if (!mqtt_connected) {
-        ESP_LOGW(TAG, "[WARN]  MQTT not connected - skipping telemetry send");
+        ESP_LOGW(TAG, "[WARN]  MQTT not connected");
+
+        // If SD card caching is enabled, cache the telemetry
+        if (config->sd_config.enabled && config->sd_config.cache_on_failure) {
+            ESP_LOGI(TAG, "[SD] 💾 Caching telemetry to SD card (MQTT disconnected)...");
+
+            // Generate the telemetry payload first
+            snprintf(telemetry_topic, sizeof(telemetry_topic),
+                     "devices/%s/messages/events/", config->azure_device_id);
+            create_telemetry_payload(telemetry_payload, sizeof(telemetry_payload));
+
+            if (strlen(telemetry_payload) > 0) {
+                esp_err_t ret = sd_card_save_message(telemetry_topic, telemetry_payload, "");
+                if (ret == ESP_OK) {
+                    ESP_LOGI(TAG, "[SD] ✅ Telemetry cached to SD card - will replay when MQTT reconnects");
+                    send_in_progress = false;
+                    return false;
+                } else {
+                    ESP_LOGE(TAG, "[SD] ❌ Failed to cache telemetry: %s", esp_err_to_name(ret));
+                }
+            }
+        }
+
+        ESP_LOGW(TAG, "[WARN] Skipping telemetry - no MQTT connection and no SD caching");
         send_in_progress = false;
         return false;
     }
