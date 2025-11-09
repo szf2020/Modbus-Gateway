@@ -756,20 +756,26 @@ static void create_telemetry_payload(char* payload, size_t payload_size) {
                 }
             }
         } else {
+            // SIM mode - use stored signal strength (cannot use AT commands in PPP mode)
             signal_strength_t signal;
-            if (a7670c_get_signal_strength(&signal) == ESP_OK) {
+            if (a7670c_get_stored_signal_strength(&signal) == ESP_OK) {
                 net_stats.signal_strength = signal.rssi_dbm;
                 strncpy(net_stats.network_type, "4G", sizeof(net_stats.network_type));
 
-                // Determine quality
-                if (signal.rssi_dbm >= -70) {
-                    strncpy(net_stats.network_quality, "Excellent", sizeof(net_stats.network_quality));
-                } else if (signal.rssi_dbm >= -85) {
-                    strncpy(net_stats.network_quality, "Good", sizeof(net_stats.network_quality));
-                } else if (signal.rssi_dbm >= -100) {
-                    strncpy(net_stats.network_quality, "Fair", sizeof(net_stats.network_quality));
+                // Use quality from stored signal data
+                if (signal.quality != NULL) {
+                    strncpy(net_stats.network_quality, signal.quality, sizeof(net_stats.network_quality) - 1);
                 } else {
-                    strncpy(net_stats.network_quality, "Poor", sizeof(net_stats.network_quality));
+                    // Fallback quality determination based on RSSI
+                    if (signal.rssi_dbm >= -70) {
+                        strncpy(net_stats.network_quality, "Excellent", sizeof(net_stats.network_quality));
+                    } else if (signal.rssi_dbm >= -85) {
+                        strncpy(net_stats.network_quality, "Good", sizeof(net_stats.network_quality));
+                    } else if (signal.rssi_dbm >= -100) {
+                        strncpy(net_stats.network_quality, "Fair", sizeof(net_stats.network_quality));
+                    } else {
+                        strncpy(net_stats.network_quality, "Poor", sizeof(net_stats.network_quality));
+                    }
                 }
             }
         }
@@ -1793,10 +1799,12 @@ void app_main(void) {
                     if (a7670c_is_connected()) {
                         ESP_LOGI(TAG, "[SIM] ✅ PPP connection established");
 
-                        // Get and log signal strength
+                        // Get stored signal strength (checked before PPP mode)
+                        // IMPORTANT: Cannot use AT commands once in PPP mode!
                         signal_strength_t signal;
-                        if (a7670c_get_signal_strength(&signal) == ESP_OK) {
-                            ESP_LOGI(TAG, "[SIM] 📊 Signal Strength: %d dBm", signal.rssi_dbm);
+                        if (a7670c_get_stored_signal_strength(&signal) == ESP_OK) {
+                            ESP_LOGI(TAG, "[SIM] 📊 Signal Strength: %d dBm (%s)",
+                                     signal.rssi_dbm, signal.quality ? signal.quality : "Unknown");
                             ESP_LOGI(TAG, "[SIM] 📡 Operator: %s", signal.operator_name);
                         }
                         break;
