@@ -1699,6 +1699,9 @@ void app_main(void) {
     }
 
     // Initialize SD card if enabled
+    ESP_LOGI(TAG, "[SD] 🔧 SD Config: enabled=%d, cache_on_failure=%d",
+             config->sd_config.enabled, config->sd_config.cache_on_failure);
+
     if (config->sd_config.enabled) {
         ESP_LOGI(TAG, "[SD] 💾 Initializing SD Card for offline data caching...");
         esp_err_t sd_ret = sd_card_init();
