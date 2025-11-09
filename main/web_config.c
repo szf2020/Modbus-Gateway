@@ -58,6 +58,22 @@ static httpd_handle_t g_server = NULL;
 // static esp_netif_t *g_netif_sta = NULL;  // Unused variable
 // static esp_netif_t *g_netif_ap = NULL;  // Reserved for future AP mode
 
+// SIM test status tracking
+typedef struct {
+    bool in_progress;
+    bool completed;
+    bool success;
+    char ip[32];
+    int signal;
+    char signal_quality[32];
+    char operator_name[64];
+    char apn[64];
+    char error[256];
+} sim_test_status_t;
+
+static sim_test_status_t g_sim_test_status = {0};
+static SemaphoreHandle_t g_sim_test_mutex = NULL;
+
 // HTML templates
 static const char* html_header = 
 "<!DOCTYPE html><html><head>"
@@ -2305,15 +2321,43 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "document.getElementById('rtc_options').style.display=enabled?'block':'none';"
         "document.getElementById('rtc_hw_options').style.display=enabled?'block':'none';"
         "}"
+        "let simTestPollInterval=null;"
         "function testSIMConnection(){"
         "const result=document.getElementById('sim_test_result');"
-        "result.innerHTML='<div style=\"text-align:center\">⏳ Testing SIM connection...<br><small>Initializing modem and connecting to network (this may take up to 30 seconds)</small></div>';"
+        "result.innerHTML='<div style=\"text-align:center\">⏳ Starting SIM test...<br><small>Please wait</small></div>';"
         "result.style.display='block';"
         "result.style.backgroundColor='#fff3cd';"
         "result.style.color='#856404';"
         "fetch('/api/sim_test',{method:'POST'})"
         ".then(r=>r.json())"
         ".then(data=>{"
+        "if(data.status==='started'){"
+        "result.innerHTML='<div style=\"text-align:center\">⏳ Testing SIM connection...<br><small>Initializing modem and connecting to network (this may take up to 30 seconds)</small></div>';"
+        "if(simTestPollInterval) clearInterval(simTestPollInterval);"
+        "simTestPollInterval=setInterval(checkSIMTestStatus,2000);"
+        "}else{"
+        "result.innerHTML='<span style=\"color:#721c24\">❌ Failed to start test: '+data.message+'</span>';"
+        "result.style.backgroundColor='#f8d7da';"
+        "}"
+        "})"
+        ".catch(err=>{"
+        "result.innerHTML='<span style=\"color:#721c24\">❌ Test failed: '+err+'</span>';"
+        "result.style.backgroundColor='#f8d7da';"
+        "});"
+        "}"
+        "function checkSIMTestStatus(){"
+        "fetch('/api/sim_test_status')"
+        ".then(r=>r.json())"
+        ".then(data=>{"
+        "const result=document.getElementById('sim_test_result');"
+        "if(data.status==='in_progress'){"
+        "return;"
+        "}"
+        "if(simTestPollInterval){"
+        "clearInterval(simTestPollInterval);"
+        "simTestPollInterval=null;"
+        "}"
+        "if(data.status==='completed'){"
         "if(data.success){"
         "let msg='<div style=\"color:#155724\"><strong>✅ SIM Module Connected Successfully!</strong><br>';"
         "msg+='<div style=\"margin-top:10px;font-size:14px;line-height:1.6\">';"
@@ -2344,12 +2388,9 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "result.style.backgroundColor='#f8d7da';"
         "result.style.color='#721c24';"
         "}"
+        "}"
         "})"
-        ".catch(err=>{"
-        "result.innerHTML='<span style=\"color:#721c24\">❌ Test failed: '+err+'</span>';"
-        "result.style.backgroundColor='#f8d7da';"
-        "result.style.color='#721c24';"
-        "});"
+        ".catch(err=>console.error('Poll error:',err));"
         "}"
         "function checkSDStatus(){"
         "const result=document.getElementById('sd_status_result');"
@@ -6977,6 +7018,15 @@ static esp_err_t start_webserver(void)
         };
         httpd_register_uri_handler(g_server, &api_sim_test_uri);
 
+        // SIM test status API endpoint
+        httpd_uri_t api_sim_test_status_uri = {
+            .uri = "/api/sim_test_status",
+            .method = HTTP_GET,
+            .handler = api_sim_test_status_handler,
+            .user_ctx = NULL
+        };
+        httpd_register_uri_handler(g_server, &api_sim_test_status_uri);
+
         // SD status API endpoint
         httpd_uri_t api_sd_status_uri = {
             .uri = "/api/sd_status",
@@ -7319,13 +7369,9 @@ static esp_err_t save_rtc_config_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-// Handler: /api/sim_test - Test SIM connection with full modem initialization
-static esp_err_t api_sim_test_handler(httpd_req_t *req) {
-    httpd_resp_set_type(req, "application/json");
-
-    ESP_LOGI(TAG, "SIM connection test requested - initializing modem...");
-
-    char response[1024];
+// Background task for SIM testing
+static void sim_test_task(void *pvParameters) {
+    ESP_LOGI(TAG, "SIM test task started");
 
     // Build modem configuration from system config
     ppp_config_t modem_config = {
@@ -7340,34 +7386,35 @@ static esp_err_t api_sim_test_handler(httpd_req_t *req) {
         .baud_rate = g_system_config.sim_config.uart_baud_rate
     };
 
-    // Initialize modem (this will setup UART and power on modem)
+    // Initialize modem
     esp_err_t init_ret = a7670c_ppp_init(&modem_config);
     if (init_ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize modem: %s", esp_err_to_name(init_ret));
-        snprintf(response, sizeof(response),
-                 "{\"success\":false,\"error\":\"Failed to initialize modem UART\"}");
-        httpd_resp_sendstr(req, response);
-        return ESP_OK;
+        xSemaphoreTake(g_sim_test_mutex, portMAX_DELAY);
+        g_sim_test_status.in_progress = false;
+        g_sim_test_status.completed = true;
+        g_sim_test_status.success = false;
+        snprintf(g_sim_test_status.error, sizeof(g_sim_test_status.error),
+                 "Failed to initialize modem UART");
+        xSemaphoreGive(g_sim_test_mutex);
+        vTaskDelete(NULL);
+        return;
     }
 
-    ESP_LOGI(TAG, "Modem initialized, waiting 10 seconds for boot and network registration...");
-
-    // Wait 10 seconds for modem to fully boot and register on network
+    ESP_LOGI(TAG, "Modem initialized, waiting 10 seconds...");
     vTaskDelay(pdMS_TO_TICKS(10000));
 
     // Get signal strength
     signal_strength_t signal;
     esp_err_t signal_ret = a7670c_get_signal_strength(&signal);
 
-    // Try to connect PPP and get IP
+    // Try to connect PPP
     esp_err_t ppp_ret = a7670c_ppp_connect();
 
     if (ppp_ret == ESP_OK) {
-        // Wait up to 20 seconds for IP address
-        ESP_LOGI(TAG, "PPP connecting, waiting for IP address...");
+        ESP_LOGI(TAG, "PPP connecting, waiting for IP...");
         int wait_count = 0;
         bool got_ip = false;
-        char ip_str[32] = "Waiting...";
+        char ip_str[32] = "";
 
         while (wait_count < 20 && !got_ip) {
             vTaskDelay(pdMS_TO_TICKS(1000));
@@ -7376,59 +7423,127 @@ static esp_err_t api_sim_test_handler(httpd_req_t *req) {
             if (a7670c_ppp_is_connected()) {
                 if (a7670c_ppp_get_ip_info(ip_str, sizeof(ip_str)) == ESP_OK) {
                     got_ip = true;
-                    ESP_LOGI(TAG, "Got IP address: %s", ip_str);
+                    ESP_LOGI(TAG, "Got IP: %s", ip_str);
                     break;
                 }
             }
         }
 
+        xSemaphoreTake(g_sim_test_mutex, portMAX_DELAY);
+        g_sim_test_status.in_progress = false;
+        g_sim_test_status.completed = true;
+
         if (got_ip) {
-            // Success! We got IP address
-            snprintf(response, sizeof(response),
-                     "{\"success\":true,"
-                     "\"ip\":\"%s\","
-                     "\"signal\":%d,"
-                     "\"signal_quality\":\"%s\","
-                     "\"operator\":\"%s\","
-                     "\"apn\":\"%s\","
-                     "\"message\":\"SIM module connected successfully!\"}",
-                     ip_str,
-                     signal.rssi_dbm,
-                     signal.quality,
-                     signal.operator_name,
-                     g_system_config.sim_config.apn);
+            g_sim_test_status.success = true;
+            strncpy(g_sim_test_status.ip, ip_str, sizeof(g_sim_test_status.ip) - 1);
+            g_sim_test_status.signal = signal.rssi_dbm;
+            strncpy(g_sim_test_status.signal_quality, signal.quality, sizeof(g_sim_test_status.signal_quality) - 1);
+            strncpy(g_sim_test_status.operator_name, signal.operator_name, sizeof(g_sim_test_status.operator_name) - 1);
+            strncpy(g_sim_test_status.apn, g_system_config.sim_config.apn, sizeof(g_sim_test_status.apn) - 1);
         } else {
-            // Timeout waiting for IP
-            snprintf(response, sizeof(response),
-                     "{\"success\":false,"
-                     "\"error\":\"Timeout waiting for IP address (PPP connected but no IP)\","
-                     "\"signal\":%d,"
-                     "\"operator\":\"%s\"}",
-                     signal.rssi_dbm,
-                     signal.operator_name);
+            g_sim_test_status.success = false;
+            snprintf(g_sim_test_status.error, sizeof(g_sim_test_status.error),
+                     "Timeout waiting for IP address");
+            g_sim_test_status.signal = signal.rssi_dbm;
+            strncpy(g_sim_test_status.operator_name, signal.operator_name, sizeof(g_sim_test_status.operator_name) - 1);
         }
+        xSemaphoreGive(g_sim_test_mutex);
     } else if (signal_ret == ESP_OK && signal.rssi_dbm != 0) {
-        // Modem responding, has signal, but PPP connection failed
-        snprintf(response, sizeof(response),
-                 "{\"success\":false,"
-                 "\"error\":\"Modem OK, Signal OK, but PPP connection failed\","
-                 "\"signal\":%d,"
-                 "\"signal_quality\":\"%s\","
-                 "\"operator\":\"%s\"}",
-                 signal.rssi_dbm,
-                 signal.quality,
-                 signal.operator_name);
+        xSemaphoreTake(g_sim_test_mutex, portMAX_DELAY);
+        g_sim_test_status.in_progress = false;
+        g_sim_test_status.completed = true;
+        g_sim_test_status.success = false;
+        snprintf(g_sim_test_status.error, sizeof(g_sim_test_status.error),
+                 "PPP connection failed");
+        g_sim_test_status.signal = signal.rssi_dbm;
+        strncpy(g_sim_test_status.signal_quality, signal.quality, sizeof(g_sim_test_status.signal_quality) - 1);
+        strncpy(g_sim_test_status.operator_name, signal.operator_name, sizeof(g_sim_test_status.operator_name) - 1);
+        xSemaphoreGive(g_sim_test_mutex);
     } else {
-        // Modem not responding or no signal
-        snprintf(response, sizeof(response),
-                 "{\"success\":false,"
-                 "\"error\":\"No response from modem or no network signal\"}");
+        xSemaphoreTake(g_sim_test_mutex, portMAX_DELAY);
+        g_sim_test_status.in_progress = false;
+        g_sim_test_status.completed = true;
+        g_sim_test_status.success = false;
+        snprintf(g_sim_test_status.error, sizeof(g_sim_test_status.error),
+                 "No response from modem or no signal");
+        xSemaphoreGive(g_sim_test_mutex);
     }
 
-    // Clean up - disconnect PPP and deinitialize modem
+    // Cleanup
     a7670c_ppp_disconnect();
     a7670c_ppp_deinit();
-    ESP_LOGI(TAG, "SIM test completed, modem deinitialized");
+    ESP_LOGI(TAG, "SIM test task completed, modem deinitialized");
+
+    vTaskDelete(NULL);
+}
+
+// Handler: /api/sim_test - Start SIM test in background
+static esp_err_t api_sim_test_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "application/json");
+
+    // Initialize mutex if needed
+    if (g_sim_test_mutex == NULL) {
+        g_sim_test_mutex = xSemaphoreCreateMutex();
+    }
+
+    // Check if test already in progress
+    xSemaphoreTake(g_sim_test_mutex, portMAX_DELAY);
+    if (g_sim_test_status.in_progress) {
+        xSemaphoreGive(g_sim_test_mutex);
+        httpd_resp_sendstr(req, "{\"status\":\"in_progress\",\"message\":\"Test already running\"}");
+        return ESP_OK;
+    }
+
+    // Reset status and start test
+    memset(&g_sim_test_status, 0, sizeof(g_sim_test_status));
+    g_sim_test_status.in_progress = true;
+    xSemaphoreGive(g_sim_test_mutex);
+
+    // Create background task
+    xTaskCreate(sim_test_task, "sim_test", 8192, NULL, 5, NULL);
+
+    httpd_resp_sendstr(req, "{\"status\":\"started\",\"message\":\"SIM test started\"}");
+    return ESP_OK;
+}
+
+// Handler: /api/sim_test_status - Get current test status
+static esp_err_t api_sim_test_status_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "application/json");
+
+    if (g_sim_test_mutex == NULL) {
+        httpd_resp_sendstr(req, "{\"status\":\"not_started\"}");
+        return ESP_OK;
+    }
+
+    xSemaphoreTake(g_sim_test_mutex, portMAX_DELAY);
+
+    char response[1024];
+    if (g_sim_test_status.in_progress) {
+        snprintf(response, sizeof(response), "{\"status\":\"in_progress\"}");
+    } else if (g_sim_test_status.completed) {
+        if (g_sim_test_status.success) {
+            snprintf(response, sizeof(response),
+                     "{\"status\":\"completed\",\"success\":true,"
+                     "\"ip\":\"%s\",\"signal\":%d,\"signal_quality\":\"%s\","
+                     "\"operator\":\"%s\",\"apn\":\"%s\"}",
+                     g_sim_test_status.ip,
+                     g_sim_test_status.signal,
+                     g_sim_test_status.signal_quality,
+                     g_sim_test_status.operator_name,
+                     g_sim_test_status.apn);
+        } else {
+            snprintf(response, sizeof(response),
+                     "{\"status\":\"completed\",\"success\":false,\"error\":\"%s\","
+                     "\"signal\":%d,\"operator\":\"%s\"}",
+                     g_sim_test_status.error,
+                     g_sim_test_status.signal,
+                     g_sim_test_status.operator_name);
+        }
+    } else {
+        snprintf(response, sizeof(response), "{\"status\":\"not_started\"}");
+    }
+
+    xSemaphoreGive(g_sim_test_mutex);
 
     httpd_resp_sendstr(req, response);
     return ESP_OK;
