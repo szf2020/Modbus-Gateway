@@ -7306,11 +7306,11 @@ static esp_err_t api_sim_test_handler(httpd_req_t *req) {
         .user = g_system_config.sim_config.apn_user,
         .pass = g_system_config.sim_config.apn_pass,
         .uart_num = g_system_config.sim_config.uart_num,
-        .tx_pin = g_system_config.sim_config.tx_pin,
-        .rx_pin = g_system_config.sim_config.rx_pin,
+        .tx_pin = g_system_config.sim_config.uart_tx_pin,
+        .rx_pin = g_system_config.sim_config.uart_rx_pin,
         .pwr_pin = g_system_config.sim_config.pwr_pin,
         .reset_pin = g_system_config.sim_config.reset_pin,
-        .baud_rate = g_system_config.sim_config.baud_rate
+        .baud_rate = g_system_config.sim_config.uart_baud_rate
     };
 
     // Initialize modem (this will setup UART)
