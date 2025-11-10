@@ -484,10 +484,26 @@ esp_err_t sd_card_replay_messages(void (*publish_callback)(const pending_message
         char *id_str = strtok(line, "|");
         char *timestamp = strtok(NULL, "|");
         char *topic = strtok(NULL, "|");
-        char *payload = strtok(NULL, "|");
+        // Get everything after the 3rd pipe as payload (handles any content in payload)
+        char *payload = topic ? (topic + strlen(topic) + 1) : NULL;
+
+        // Validate payload isn't empty
+        if (payload && *payload == '\0') {
+            payload = NULL;
+        }
 
         if (id_str == NULL || timestamp == NULL || topic == NULL || payload == NULL) {
-            ESP_LOGW(TAG, "Malformed message line, skipping");
+            ESP_LOGW(TAG, "Malformed message line, skipping (ID=%s, TS=%s, Topic=%s, Payload=%s)",
+                     id_str ? id_str : "NULL",
+                     timestamp ? timestamp : "NULL",
+                     topic ? topic : "NULL",
+                     payload ? "NULL" : "empty");
+            continue;
+        }
+
+        // Additional validation: check timestamp isn't empty
+        if (*timestamp == '\0') {
+            ESP_LOGW(TAG, "Malformed message line, skipping (empty timestamp)");
             continue;
         }
 
