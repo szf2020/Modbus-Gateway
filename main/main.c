@@ -1489,10 +1489,18 @@ static bool send_telemetry(void) {
             create_telemetry_payload(telemetry_payload, sizeof(telemetry_payload));
 
             if (strlen(telemetry_payload) > 0) {
-                esp_err_t ret = sd_card_save_message(telemetry_topic, telemetry_payload, "");
+                // Generate timestamp for SD card message
+                time_t now = time(NULL);
+                struct tm timeinfo;
+                gmtime_r(&now, &timeinfo);
+                char timestamp[32];
+                strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
+
+                esp_err_t ret = sd_card_save_message(telemetry_topic, telemetry_payload, timestamp);
                 if (ret == ESP_OK) {
                     ESP_LOGI(TAG, "[SD] ✅ Telemetry cached to SD card - will replay when network reconnects");
                     send_in_progress = false;
+                    last_actual_send_time = current_time; // Update to respect telemetry interval
                     // Return FALSE to indicate not sent to cloud (only cached locally)
                     // Telemetry task will retry when network comes back online
                     return false;
@@ -1530,10 +1538,18 @@ static bool send_telemetry(void) {
             create_telemetry_payload(telemetry_payload, sizeof(telemetry_payload));
 
             if (strlen(telemetry_payload) > 0) {
-                esp_err_t ret = sd_card_save_message(telemetry_topic, telemetry_payload, "");
+                // Generate timestamp for SD card message
+                time_t now = time(NULL);
+                struct tm timeinfo;
+                gmtime_r(&now, &timeinfo);
+                char timestamp[32];
+                strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
+
+                esp_err_t ret = sd_card_save_message(telemetry_topic, telemetry_payload, timestamp);
                 if (ret == ESP_OK) {
                     ESP_LOGI(TAG, "[SD] ✅ Telemetry cached to SD card - will replay when MQTT reconnects");
                     send_in_progress = false;
+                    last_actual_send_time = current_time; // Update to respect telemetry interval
                     return false;
                 } else {
                     ESP_LOGE(TAG, "[SD] ❌ Failed to cache telemetry: %s", esp_err_to_name(ret));
