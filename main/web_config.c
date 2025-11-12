@@ -1390,17 +1390,17 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "<div style='background:#e8f4f8;padding:12px;border-radius:6px;margin-top:15px;border-left:4px solid #17a2b8'>"
         "<small style='color:#0c5460'><strong>Tip:</strong> Click on any scanned network to auto-fill the SSID field. Strong signal networks appear at the top.</small>"
         "</div>"
+        "<div style='background:#d4edda;padding:12px;margin:15px 0;border-radius:5px;border:1px solid #c3e6cb'>"
+        "<button type='submit' style='background:#28a745;color:white;padding:10px 15px;border:none;border-radius:4px;font-weight:bold'>Save WiFi Settings</button>"
+        "<p style='color:#155724;font-size:11px;margin:8px 0 0 0'>This saves WiFi settings only. Azure and sensors are configured separately.</p>"
+        "</div>"
         "</div>",
         g_system_config.network_mode == 0 ? "block" : "none",
         escaped_ssid, escaped_password);
     httpd_resp_sendstr_chunk(req, chunk);
-    
+
     // Close WiFi form section
     snprintf(chunk, sizeof(chunk),
-        "<div style='background:#fff3cd;padding:12px;margin:15px 0;border-radius:5px;border:1px solid #ffeaa7'>"
-        "<button type='submit' style='background:#007bff;color:white;padding:10px 15px;border:none;border-radius:4px;font-weight:bold'>Save WiFi Settings</button>"
-        "<p style='color:#856404;font-size:11px;margin:8px 0 0 0'>This saves WiFi settings only. Azure and sensors are configured separately.</p>"
-        "</div>"
         "</form>"
         "</div>"
         "</div>");  // Close wifi section and wifi_panel wrapper
