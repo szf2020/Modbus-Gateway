@@ -65,7 +65,7 @@ QueueHandle_t sensor_data_queue = NULL;
 static esp_mqtt_client_handle_t mqtt_client;
 static char sas_token[512];
 static uint32_t telemetry_send_count = 0;
-static bool mqtt_connected = false;
+bool mqtt_connected = false;  // Non-static for external access
 
 // Flow meter configuration now comes from web interface (NVS storage)
 // Hardcoded configuration removed - using dynamic sensor configuration
@@ -75,12 +75,16 @@ static bool mqtt_connected = false;
 static flow_meter_data_t current_flow_data = {0};
 
 // Production monitoring variables
-static uint32_t mqtt_reconnect_count = 0;
+uint32_t mqtt_reconnect_count = 0;  // Non-static for external access
 static uint32_t modbus_failure_count = 0;
 
 // System reliability constants (using values from iot_configs.h)
-static uint32_t total_telemetry_sent = 0;
+uint32_t total_telemetry_sent = 0;  // Non-static for external access
 static uint32_t system_uptime_start = 0;
+
+// MQTT connection timing for status monitoring
+int64_t mqtt_connect_time = 0;  // Timestamp when MQTT connected
+int64_t last_telemetry_time = 0;  // Timestamp of last telemetry sent
 
 // Static buffers to avoid stack overflow
 static char mqtt_broker_uri[256];
@@ -416,8 +420,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(TAG, "[OK] MQTT_EVENT_CONNECTED - Azure IoT Hub connection established!");
             mqtt_connected = true;
+            mqtt_connect_time = esp_timer_get_time() / 1000000;  // Record connection time in seconds
             mqtt_reconnect_count = 0; // Reset reconnect counter on successful connection
-            
+
             // Subscribe to cloud-to-device messages after connection
             system_config_t* config = get_system_config();
             snprintf(c2d_topic, sizeof(c2d_topic), "devices/%s/messages/devicebound/#", config->azure_device_id);
@@ -473,6 +478,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         case MQTT_EVENT_PUBLISHED:
             ESP_LOGI(TAG, "[OK] TELEMETRY PUBLISHED SUCCESSFULLY! msg_id=%d", event->msg_id);
             total_telemetry_sent++;
+            last_telemetry_time = esp_timer_get_time() / 1000000;  // Record last telemetry time in seconds
             break;
             
         case MQTT_EVENT_DATA:

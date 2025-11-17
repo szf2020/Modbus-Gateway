@@ -45,6 +45,13 @@
 
 static const char *TAG = "WEB_CONFIG";
 
+// External declarations for MQTT/Azure status from main.c
+extern bool mqtt_connected;
+extern uint32_t total_telemetry_sent;
+extern uint32_t mqtt_reconnect_count;
+extern int64_t mqtt_connect_time;
+extern int64_t last_telemetry_time;
+
 // LOGO CONFIGURATION - Edit these values to customize your logo
 #define COMPANY_NAME "Fluxgen"
 #define COMPANY_TAGLINE "Building a Water Positive Future"
@@ -483,7 +490,30 @@ static const char* html_header =
 "rssi.textContent=data.wifi.rssi+' dBm';"
 "rssi.className=data.wifi.rssi>-50?'status-good':(data.wifi.rssi>-70?'status-warning':'status-error');"
 "document.getElementById('ssid').textContent=data.wifi.ssid;"
-"}).catch(err=>console.log('Status update failed:',err));}"
+"}).catch(err=>console.log('Status update failed:',err));"
+"fetch('/api/modbus/status').then(r=>r.json()).then(data=>{"
+"document.getElementById('modbus_total_reads').textContent=data.total_reads;"
+"document.getElementById('modbus_success').textContent=data.successful_reads;"
+"document.getElementById('modbus_failed').textContent=data.failed_reads;"
+"const modbusRate=document.getElementById('modbus_success_rate');"
+"modbusRate.textContent=data.success_rate.toFixed(1)+'%';"
+"modbusRate.className=data.success_rate>95?'status-good':(data.success_rate>80?'status-warning':'status-error');"
+"document.getElementById('modbus_crc_errors').textContent=data.crc_errors;"
+"document.getElementById('modbus_timeout_errors').textContent=data.timeout_errors;"
+"}).catch(err=>console.log('Modbus status failed:',err));"
+"fetch('/api/azure/status').then(r=>r.json()).then(data=>{"
+"const azureConn=document.getElementById('azure_connection');"
+"azureConn.textContent=data.connection_state;"
+"azureConn.className=data.connection_state==='connected'?'status-good':'status-error';"
+"const hours=Math.floor(data.connection_uptime/3600);"
+"const mins=Math.floor((data.connection_uptime%3600)/60);"
+"document.getElementById('azure_uptime').textContent=hours+'h '+mins+'m';"
+"document.getElementById('azure_messages').textContent=data.messages_sent;"
+"const lastTel=data.last_telemetry_ago;"
+"document.getElementById('azure_last_telemetry').textContent=lastTel>0?lastTel+'s ago':'Never';"
+"document.getElementById('azure_reconnects').textContent=data.reconnect_attempts;"
+"document.getElementById('azure_device_id').textContent=data.device_id;"
+"}).catch(err=>console.log('Azure status failed:',err));}"
 
 "function performWatchdogAction(action){"
 "const btn=event.target;"
@@ -1162,6 +1192,8 @@ static esp_err_t api_sd_replay_handler(httpd_req_t *req);
 static esp_err_t api_rtc_time_handler(httpd_req_t *req);
 static esp_err_t api_rtc_sync_handler(httpd_req_t *req);
 static esp_err_t api_rtc_set_handler(httpd_req_t *req);
+static esp_err_t api_modbus_status_handler(httpd_req_t *req);
+static esp_err_t api_azure_status_handler(httpd_req_t *req);
 
 // WiFi scan handler
 // Global scan state management
@@ -4653,6 +4685,26 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "<p><strong>Network:</strong> <span id='sim_network'>Loading...</span></p>"
         "<p><strong>IP Address:</strong> <span id='sim_ip'>Loading...</span></p>"
         "</div>"
+        ""
+        "<div class='sensor-card'>"
+        "<h3>Modbus Communication</h3>"
+        "<p><strong>Total Reads:</strong> <span id='modbus_total_reads'>Loading...</span></p>"
+        "<p><strong>Successful:</strong> <span id='modbus_success'>Loading...</span></p>"
+        "<p><strong>Failed:</strong> <span id='modbus_failed'>Loading...</span></p>"
+        "<p><strong>Success Rate:</strong> <span id='modbus_success_rate'>Loading...</span></p>"
+        "<p><strong>CRC Errors:</strong> <span id='modbus_crc_errors'>Loading...</span></p>"
+        "<p><strong>Timeout Errors:</strong> <span id='modbus_timeout_errors'>Loading...</span></p>"
+        "</div>"
+        ""
+        "<div class='sensor-card'>"
+        "<h3>Azure IoT Hub</h3>"
+        "<p><strong>Connection:</strong> <span id='azure_connection'>Loading...</span></p>"
+        "<p><strong>Uptime:</strong> <span id='azure_uptime'>Loading...</span></p>"
+        "<p><strong>Messages Sent:</strong> <span id='azure_messages'>Loading...</span></p>"
+        "<p><strong>Last Telemetry:</strong> <span id='azure_last_telemetry'>Loading...</span></p>"
+        "<p><strong>Reconnects:</strong> <span id='azure_reconnects'>Loading...</span></p>"
+        "<p><strong>Device ID:</strong> <span id='azure_device_id'>Loading...</span></p>"
+        "</div>"
         "</div>",
         g_system_config.network_mode == 0 ? "block" : "none",
         g_system_config.network_mode == 1 ? "block" : "none");
@@ -7965,6 +8017,24 @@ static esp_err_t start_webserver(void)
         };
         httpd_register_uri_handler(g_server, &api_rtc_set_uri);
 
+        // Modbus status API endpoint
+        httpd_uri_t api_modbus_status_uri = {
+            .uri = "/api/modbus/status",
+            .method = HTTP_GET,
+            .handler = api_modbus_status_handler,
+            .user_ctx = NULL
+        };
+        httpd_register_uri_handler(g_server, &api_modbus_status_uri);
+
+        // Azure IoT Hub status API endpoint
+        httpd_uri_t api_azure_status_uri = {
+            .uri = "/api/azure/status",
+            .method = HTTP_GET,
+            .handler = api_azure_status_handler,
+            .user_ctx = NULL
+        };
+        httpd_register_uri_handler(g_server, &api_azure_status_uri);
+
         ESP_LOGI(TAG, "Web server started on port 80");
         ESP_LOGI(TAG, "[NET] All URI handlers registered successfully (including new SIM/SD/RTC endpoints)");
         ESP_LOGI(TAG, "[CONFIG] Available endpoints: /, /save_config, /save_azure_config, /save_network_mode, /save_sim_config, /save_sd_config, /save_rtc_config, /test_sensor, /test_rs485, /start_operation, /scan_wifi, /live_data, /edit_sensor, /save_single_sensor, /delete_sensor, /api/system_status, /api/sim_test, /api/sd_status, /api/sd_clear, /api/sd_replay, /api/rtc_time, /api/rtc_sync, /api/rtc_set, /write_single_register, /write_multiple_registers, /reboot, /watchdog_control, /gpio_trigger, /logo, /favicon.ico");
@@ -8562,6 +8632,98 @@ static esp_err_t api_rtc_set_handler(httpd_req_t *req) {
     } else {
         httpd_resp_sendstr(req, "{\"success\":false,\"error\":\"Failed to sync system time\"}");
     }
+    return ESP_OK;
+}
+
+// Handler: /api/modbus/status - Get Modbus communication statistics
+static esp_err_t api_modbus_status_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "application/json");
+
+    // Get Modbus statistics
+    modbus_stats_t stats;
+    modbus_get_statistics(&stats);
+
+    // Calculate success rate
+    float success_rate = 0.0f;
+    if (stats.total_requests > 0) {
+        success_rate = (float)stats.successful_requests / (float)stats.total_requests * 100.0f;
+    }
+
+    // Get current time for timestamp
+    int64_t current_time = esp_timer_get_time() / 1000000;
+
+    char json_response[512];
+    snprintf(json_response, sizeof(json_response),
+        "{"
+        "\"total_reads\":%lu,"
+        "\"successful_reads\":%lu,"
+        "\"failed_reads\":%lu,"
+        "\"success_rate\":%.2f,"
+        "\"crc_errors\":%lu,"
+        "\"timeout_errors\":%lu,"
+        "\"last_error_code\":%lu,"
+        "\"sensors_configured\":%d,"
+        "\"timestamp\":%lld"
+        "}",
+        (unsigned long)stats.total_requests,
+        (unsigned long)stats.successful_requests,
+        (unsigned long)stats.failed_requests,
+        success_rate,
+        (unsigned long)stats.crc_errors,
+        (unsigned long)stats.timeout_errors,
+        (unsigned long)stats.last_error_code,
+        g_system_config.sensor_count,
+        (long long)current_time
+    );
+
+    httpd_resp_sendstr(req, json_response);
+    return ESP_OK;
+}
+
+// Handler: /api/azure/status - Get Azure IoT Hub connection status
+static esp_err_t api_azure_status_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "application/json");
+
+    // Get current time
+    int64_t current_time = esp_timer_get_time() / 1000000;
+
+    // Calculate connection uptime
+    int64_t connection_uptime = 0;
+    if (mqtt_connected && mqtt_connect_time > 0) {
+        connection_uptime = current_time - mqtt_connect_time;
+    }
+
+    // Calculate time since last telemetry
+    int64_t time_since_telemetry = 0;
+    if (last_telemetry_time > 0) {
+        time_since_telemetry = current_time - last_telemetry_time;
+    }
+
+    char json_response[512];
+    snprintf(json_response, sizeof(json_response),
+        "{"
+        "\"connection_state\":\"%s\","
+        "\"connection_uptime\":%lld,"
+        "\"messages_sent\":%lu,"
+        "\"reconnect_attempts\":%lu,"
+        "\"last_telemetry_ago\":%lld,"
+        "\"telemetry_interval\":%d,"
+        "\"hub_name\":\"%s\","
+        "\"device_id\":\"%s\","
+        "\"timestamp\":%lld"
+        "}",
+        mqtt_connected ? "connected" : "disconnected",
+        (long long)connection_uptime,
+        (unsigned long)total_telemetry_sent,
+        (unsigned long)mqtt_reconnect_count,
+        (long long)time_since_telemetry,
+        g_system_config.telemetry_interval,
+        g_system_config.azure_hub_name,
+        g_system_config.azure_device_id,
+        (long long)current_time
+    );
+
+    httpd_resp_sendstr(req, json_response);
     return ESP_OK;
 }
 
