@@ -5291,23 +5291,22 @@ static esp_err_t test_sensor_handler(httpd_req_t *req)
                 snprintf(value_desc, sizeof(value_desc), "Level %.2f%%", display_value);
             } else if (strcmp(sensor->sensor_type, "ZEST") == 0 && reg_count >= 4) {
                 // ZEST sensor special handling - 4-register format
-                // Register[0]: Integer part (UINT16)
-                // Register[1]: Unused (0x0000)
-                // Registers[2-3]: Decimal part (FLOAT32 Big Endian ABCD)
+                // Registers [0,1]: INT32 Big Endian (ABCD)
+                // Registers [2,3]: INT32 Little Endian Byte Swap (DCBA)
 
-                // Integer part from register[0]
-                uint32_t integer_part = (uint32_t)registers[0];
-                double value1 = (double)integer_part;
+                // First 2 registers as INT32 Big Endian
+                uint32_t int32_be = ((uint32_t)registers[0] << 16) | registers[1];
+                int32_t signed_value1 = (int32_t)int32_be;
+                double value1 = (double)signed_value1 * sensor->scale_factor;
 
-                // Decimal part from registers[2-3] as IEEE 754 float
-                uint32_t float_bits = ((uint32_t)registers[2] << 16) | registers[3];
-                float decimal_float;
-                memcpy(&decimal_float, &float_bits, sizeof(float));
-                double value2 = (double)decimal_float;
+                // Next 2 registers as INT32 Little Endian Byte Swap
+                uint32_t int32_le_swap = ((uint32_t)registers[3] << 16) | registers[2];
+                int32_t signed_value2 = (int32_t)int32_le_swap;
+                double value2 = (double)signed_value2 * sensor->scale_factor;
 
-                display_value = (value1 + value2) * sensor->scale_factor;
-                snprintf(value_desc, sizeof(value_desc), "ZEST: UINT16(%lu) + FLOAT32(%.6f) = %.6f",
-                         (unsigned long)integer_part, value2, display_value);
+                display_value = value1 + value2;
+                snprintf(value_desc, sizeof(value_desc), "ZEST: INT32_BE(%ld) + INT32_LE_SWAP(%ld) = %.6f",
+                         (long)signed_value1, (long)signed_value2, display_value);
             } else {
                 snprintf(value_desc, sizeof(value_desc), "%s×%.3f", sensor->data_type, sensor->scale_factor);
             }
@@ -5326,37 +5325,29 @@ static esp_err_t test_sensor_handler(httpd_req_t *req)
                 strcat(format_table, comparison_str);
             } else if (strcmp(sensor->sensor_type, "ZEST") == 0 && reg_count >= 4) {
                 // Add detailed ZEST calculation breakdown for 4-register format
-                // ZEST Format: Register[0] = Integer part (UINT16)
-                //              Register[1] = Unused (0x0000)
-                //              Registers[2-3] = Decimal part (FLOAT32 Big Endian)
                 strcat(format_table, temp_str);
 
-                // Integer part from register[0]
-                uint32_t integer_part = (uint32_t)registers[0];
-                double value1 = (double)integer_part;
+                // Calculate individual components for display (same logic as above)
+                uint32_t uint32_be = ((uint32_t)registers[0] << 16) | registers[1];
+                double value1 = (double)uint32_be * sensor->scale_factor;
 
-                // Decimal part from registers[2-3] as IEEE 754 float (Big Endian ABCD)
-                uint32_t float_bits = ((uint32_t)registers[2] << 16) | registers[3];
-                float decimal_float;
-                memcpy(&decimal_float, &float_bits, sizeof(float));
-                double value2 = (double)decimal_float;
+                uint32_t uint32_le_swap = ((uint32_t)registers[3] << 16) | registers[2];
+                double value2 = (double)uint32_le_swap * 0.001 * sensor->scale_factor;
 
-                // Calculate correct ZEST total sum with scale factor
-                double zest_total = (value1 + value2) * sensor->scale_factor;
+                // Calculate correct ZEST total sum
+                double zest_total = value1 + value2;
 
                 char zest_breakdown[700];
                 snprintf(zest_breakdown, sizeof(zest_breakdown),
-                         "<br><div class='scada-breakdown'>"
+                         "<br><div style='background:#e6f3ff;padding:8px;border-radius:4px;margin:5px 0'>"
                          "<b>ZEST Calculation Breakdown:</b><br>"
-                         "• Register [0] as UINT16: 0x%04X = %lu (Integer Part)<br>"
-                         "• Register [1]: 0x%04X (Unused)<br>"
-                         "• Registers [2-3] as FLOAT32_ABCD: 0x%04X%04X = %.6f (Decimal Part)<br>"
-                         "• <b>Total = (%.0f + %.6f) × %.3f = %.6f</b> ✅"
+                         "• Registers [0-1] as UINT32_BE: 0x%04X%04X = %lu × %.3f = <b>%.6f</b><br>"
+                         "• Registers [2-3] as UINT32_LE_SWAP: 0x%04X%04X = %lu × 0.001 × %.3f = <b>%.6f</b><br>"
+                         "• <b>Total Sum = %.6f</b> ✅"
                          "</div>",
-                         registers[0], (unsigned long)integer_part,
-                         registers[1],
-                         registers[2], registers[3], value2,
-                         value1, value2, sensor->scale_factor, zest_total);
+                         registers[0], registers[1], (unsigned long)uint32_be, sensor->scale_factor, value1,
+                         registers[2], registers[3], (unsigned long)uint32_le_swap, sensor->scale_factor, value2,
+                         zest_total);
                 strcat(format_table, zest_breakdown);
             } else {
                 strcat(format_table, temp_str);
