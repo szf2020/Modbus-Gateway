@@ -692,6 +692,9 @@ static const char* html_header =
 "<button class='menu-item' onclick='showSection(\"write_ops\")'>"
 "<i class='menu-icon'>✎</i>WRITE OPERATIONS"
 "</button>"
+"<button class='menu-item' onclick='showSection(\"modbus_explorer\")'>"
+"<i class='menu-icon'>🔍</i>MODBUS EXPLORER"
+"</button>"
 "</div>"
 "<div class='main-content'>";
 
@@ -1200,6 +1203,8 @@ static esp_err_t api_rtc_sync_handler(httpd_req_t *req);
 static esp_err_t api_rtc_set_handler(httpd_req_t *req);
 static esp_err_t api_modbus_status_handler(httpd_req_t *req);
 static esp_err_t api_azure_status_handler(httpd_req_t *req);
+static esp_err_t modbus_scan_handler(httpd_req_t *req);
+static esp_err_t modbus_read_live_handler(httpd_req_t *req);
 
 // WiFi scan handler
 // Global scan state management
@@ -4599,6 +4604,102 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "btnWaterQuality.style.background = '#17a2b8';"
         "}"
         "}"
+        "let autoRefreshInterval=null;"
+        "function scanModbusDevices(){"
+        "const startId=parseInt(document.getElementById('scan_start').value);"
+        "const endId=parseInt(document.getElementById('scan_end').value);"
+        "const testRegister=parseInt(document.getElementById('scan_register').value);"
+        "const regType=document.getElementById('scan_reg_type').value;"
+        "const progressDiv=document.getElementById('scan_progress');"
+        "const resultsDiv=document.getElementById('scan_results');"
+        "if(startId<1||startId>247||endId<1||endId>247||startId>endId){"
+        "alert('Invalid slave ID range (1-247)');return;}"
+        "progressDiv.style.display='block';"
+        "progressDiv.innerHTML='<div style=\"background:#d1ecf1;padding:10px;border-radius:4px;color:#0c5460\">Scanning devices '+startId+'-'+endId+'...</div>';"
+        "resultsDiv.innerHTML='';"
+        "const data='start_id='+startId+'&end_id='+endId+'&test_register='+testRegister+'&reg_type='+regType;"
+        "fetch('/modbus_scan',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:data})"
+        ".then(response=>response.json()).then(result=>{"
+        "progressDiv.style.display='none';"
+        "if(result.status==='success'){"
+        "if(result.devices.length===0){"
+        "resultsDiv.innerHTML='<div class=\"sensor-card\"><h3>No Devices Found</h3><p>No responsive Modbus devices found in range '+startId+'-'+endId+'</p></div>';"
+        "}else{"
+        "let html='<div class=\"sensor-card\"><h3>Discovered Devices ('+result.devices.length+')</h3><table style=\"width:100%;border-collapse:collapse\"><thead><tr><th>Slave ID</th><th>Status</th></tr></thead><tbody>';"
+        "result.devices.forEach(dev=>{"
+        "html+='<tr><td>'+dev.slave_id+'</td><td><span style=\"color:#28a745;font-weight:bold\">✓ Responsive</span></td></tr>';"
+        "});"
+        "html+='</tbody></table></div>';"
+        "resultsDiv.innerHTML=html;"
+        "}"
+        "}else{"
+        "resultsDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">ERROR: '+result.message+'</div>';"
+        "}"
+        "}).catch(error=>{"
+        "progressDiv.style.display='none';"
+        "resultsDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">NETWORK ERROR: '+error.message+'</div>';"
+        "});}"
+        "function readLiveRegisters(){"
+        "const slaveId=parseInt(document.getElementById('live_slave').value);"
+        "const startRegister=parseInt(document.getElementById('live_register').value);"
+        "const quantity=parseInt(document.getElementById('live_quantity').value);"
+        "const regType=document.getElementById('live_reg_type').value;"
+        "const resultDiv=document.getElementById('live_result');"
+        "if(slaveId<1||slaveId>247){alert('Slave ID must be 1-247');return;}"
+        "if(quantity<1||quantity>10){alert('Quantity must be 1-10');return;}"
+        "const data='slave_id='+slaveId+'&start_register='+startRegister+'&quantity='+quantity+'&reg_type='+regType;"
+        "fetch('/modbus_read_live',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:data})"
+        ".then(response=>response.json()).then(result=>{"
+        "if(result.status==='success'){"
+        "const f=result.formats;"
+        "let html='<div class=\"sensor-card\"><h3>Register Values</h3>';"
+        "html+='<table class=\"scada-table\"><thead><tr class=\"scada-header-main\"><th colspan=\"2\">Raw Data</th></tr></thead><tbody>';"
+        "html+='<tr><td><strong>Hex String</strong></td><td>'+f.hex_string+'</td></tr></tbody></table>';"
+        "if(f.uint16_be!==undefined){"
+        "html+='<table class=\"scada-table\"><thead><tr class=\"scada-header-uint\"><th colspan=\"2\">16-bit Formats</th></tr></thead><tbody>';"
+        "html+='<tr><td><strong>UINT16 Big Endian</strong></td><td>'+f.uint16_be+'</td></tr>';"
+        "html+='<tr><td><strong>UINT16 Little Endian</strong></td><td>'+f.uint16_le+'</td></tr>';"
+        "html+='<tr><td><strong>INT16 Big Endian</strong></td><td>'+f.int16_be+'</td></tr>';"
+        "html+='<tr><td><strong>INT16 Little Endian</strong></td><td>'+f.int16_le+'</td></tr></tbody></table>';"
+        "}"
+        "if(f.uint32_abcd!==undefined){"
+        "html+='<table class=\"scada-table\"><thead><tr class=\"scada-header-uint\"><th colspan=\"2\">32-bit UINT Formats</th></tr></thead><tbody>';"
+        "html+='<tr><td><strong>UINT32 ABCD</strong></td><td>'+f.uint32_abcd+'</td></tr>';"
+        "html+='<tr><td><strong>UINT32 DCBA</strong></td><td>'+f.uint32_dcba+'</td></tr>';"
+        "html+='<tr><td><strong>UINT32 BADC</strong></td><td>'+f.uint32_badc+'</td></tr>';"
+        "html+='<tr><td><strong>UINT32 CDAB</strong></td><td>'+f.uint32_cdab+'</td></tr></tbody></table>';"
+        "html+='<table class=\"scada-table\"><thead><tr class=\"scada-header-int\"><th colspan=\"2\">32-bit INT Formats</th></tr></thead><tbody>';"
+        "html+='<tr><td><strong>INT32 ABCD</strong></td><td>'+f.int32_abcd+'</td></tr>';"
+        "html+='<tr><td><strong>INT32 DCBA</strong></td><td>'+f.int32_dcba+'</td></tr>';"
+        "html+='<tr><td><strong>INT32 BADC</strong></td><td>'+f.int32_badc+'</td></tr>';"
+        "html+='<tr><td><strong>INT32 CDAB</strong></td><td>'+f.int32_cdab+'</td></tr></tbody></table>';"
+        "html+='<table class=\"scada-table\"><thead><tr class=\"scada-header-float\"><th colspan=\"2\">32-bit FLOAT Formats</th></tr></thead><tbody>';"
+        "html+='<tr><td><strong>FLOAT32 ABCD</strong></td><td>'+f.float32_abcd.toFixed(6)+'</td></tr>';"
+        "html+='<tr><td><strong>FLOAT32 DCBA</strong></td><td>'+f.float32_dcba.toFixed(6)+'</td></tr>';"
+        "html+='<tr><td><strong>FLOAT32 BADC</strong></td><td>'+f.float32_badc.toFixed(6)+'</td></tr>';"
+        "html+='<tr><td><strong>FLOAT32 CDAB</strong></td><td>'+f.float32_cdab.toFixed(6)+'</td></tr></tbody></table>';"
+        "}"
+        "html+='</div>';"
+        "resultDiv.innerHTML=html;"
+        "}else{"
+        "resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">ERROR: '+result.message+'</div>';"
+        "}"
+        "}).catch(error=>{"
+        "resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">NETWORK ERROR: '+error.message+'</div>';"
+        "});}"
+        "function toggleAutoRefresh(){"
+        "const btn=document.getElementById('auto_refresh_btn');"
+        "if(autoRefreshInterval){"
+        "clearInterval(autoRefreshInterval);"
+        "autoRefreshInterval=null;"
+        "btn.textContent='Enable Auto-Refresh';"
+        "btn.style.background='var(--color-primary)';"
+        "}else{"
+        "readLiveRegisters();"
+        "autoRefreshInterval=setInterval(readLiveRegisters,2000);"
+        "btn.textContent='Disable Auto-Refresh';"
+        "btn.style.background='var(--color-error)';"
+        "}}"
         "console.log('Script loaded successfully. addSensor function defined:', typeof addSensor);"
         "</script>");
     
@@ -4666,7 +4767,69 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "</div>"
         "</div>"
     );
-    
+
+    // Modbus Explorer section
+    httpd_resp_sendstr_chunk(req,
+        "<div id='modbus_explorer' class='section'>"
+        "<h2 class='section-title'><i>🔍</i>Modbus Explorer</h2>"
+        ""
+        "<div class='sensor-card'>"
+        "<h3>Device Scanner</h3>"
+        "<p>Scan the RS485 bus to discover Modbus devices by checking responses from slave IDs.</p>"
+        "<div class='form-grid'>"
+        "<label>Start Slave ID:</label>"
+        "<input type='number' id='scan_start' min='1' max='247' value='1'>"
+        "<label>End Slave ID:</label>"
+        "<input type='number' id='scan_end' min='1' max='247' value='10'>"
+        "<label>Register to Test:</label>"
+        "<input type='number' id='scan_register' min='0' max='65535' value='0'>"
+        "<label>Register Type:</label>"
+        "<select id='scan_reg_type'>"
+        "<option value='holding'>Holding Register (0x03)</option>"
+        "<option value='input'>Input Register (0x04)</option>"
+        "</select>"
+        "</div>"
+        "<button onclick='scanModbusDevices()' class='btn' style='background:var(--color-accent);color:white;width:auto;min-width:200px'>Scan for Devices</button>"
+        "<div id='scan_progress' style='margin-top:var(--space-md);padding:var(--space-md);background:var(--color-bg-secondary);border-radius:var(--radius-md);display:none'></div>"
+        "<div id='scan_results' style='margin-top:var(--space-md)'></div>"
+        "</div>"
+        ""
+        "<div class='sensor-card'>"
+        "<h3>Live Register Reader</h3>"
+        "<p>Read registers in real-time with automatic format interpretation (ScadaCore compatible).</p>"
+        "<div class='form-grid'>"
+        "<label>Slave ID:</label>"
+        "<input type='number' id='live_slave' min='1' max='247' value='1'>"
+        "<label>Start Register:</label>"
+        "<input type='number' id='live_register' min='0' max='65535' value='0'>"
+        "<label>Quantity:</label>"
+        "<input type='number' id='live_quantity' min='1' max='10' value='2'>"
+        "<label>Register Type:</label>"
+        "<select id='live_reg_type'>"
+        "<option value='holding'>Holding Register (0x03)</option>"
+        "<option value='input'>Input Register (0x04)</option>"
+        "</select>"
+        "</div>"
+        "<div style='display:flex;gap:var(--space-md);margin-top:var(--space-md)'>"
+        "<button onclick='readLiveRegisters()' class='btn' style='background:var(--color-success);color:white;flex:1'>Read Once</button>"
+        "<button onclick='toggleAutoRefresh()' id='auto_refresh_btn' class='btn' style='background:var(--color-primary);color:white;flex:1'>Enable Auto-Refresh</button>"
+        "</div>"
+        "<div id='live_result' style='margin-top:var(--space-md)'></div>"
+        "</div>"
+        ""
+        "<div class='sensor-card'>"
+        "<h3>Explorer Notes</h3>"
+        "<ul style='margin:10px 0;padding-left:20px'>"
+        "<li><strong>Device Scanner:</strong> Tests each slave ID for a response. Non-responsive IDs are skipped.</li>"
+        "<li><strong>Register Reader:</strong> Reads registers and shows all possible format interpretations.</li>"
+        "<li><strong>Auto-Refresh:</strong> Continuously reads registers every 2 seconds for monitoring.</li>"
+        "<li><strong>Format Display:</strong> Shows data in 16 formats (UINT16/32, INT16/32, FLOAT32, all byte orders).</li>"
+        "<li><strong>Industrial Use:</strong> Useful for commissioning, troubleshooting, and device discovery.</li>"
+        "</ul>"
+        "</div>"
+        "</div>"
+    );
+
     // Monitoring section
     snprintf(chunk, sizeof(chunk),
         "<div id='monitoring' class='section'>"
@@ -8072,9 +8235,37 @@ static esp_err_t start_webserver(void)
         };
         httpd_register_uri_handler(g_server, &api_azure_status_uri);
 
+        // Modbus Explorer: Device Scanner endpoint
+        httpd_uri_t modbus_scan_uri = {
+            .uri = "/modbus_scan",
+            .method = HTTP_POST,
+            .handler = modbus_scan_handler,
+            .user_ctx = NULL
+        };
+        esp_err_t scan_reg = httpd_register_uri_handler(g_server, &modbus_scan_uri);
+        if (scan_reg == ESP_OK) {
+            ESP_LOGI(TAG, "SUCCESS: /modbus_scan endpoint registered successfully");
+        } else {
+            ESP_LOGE(TAG, "ERROR: Failed to register /modbus_scan endpoint: %s", esp_err_to_name(scan_reg));
+        }
+
+        // Modbus Explorer: Live Register Reader endpoint
+        httpd_uri_t modbus_read_live_uri = {
+            .uri = "/modbus_read_live",
+            .method = HTTP_POST,
+            .handler = modbus_read_live_handler,
+            .user_ctx = NULL
+        };
+        esp_err_t live_reg = httpd_register_uri_handler(g_server, &modbus_read_live_uri);
+        if (live_reg == ESP_OK) {
+            ESP_LOGI(TAG, "SUCCESS: /modbus_read_live endpoint registered successfully");
+        } else {
+            ESP_LOGE(TAG, "ERROR: Failed to register /modbus_read_live endpoint: %s", esp_err_to_name(live_reg));
+        }
+
         ESP_LOGI(TAG, "Web server started on port 80");
-        ESP_LOGI(TAG, "[NET] All URI handlers registered successfully (including new SIM/SD/RTC endpoints)");
-        ESP_LOGI(TAG, "[CONFIG] Available endpoints: /, /save_config, /save_azure_config, /save_network_mode, /save_sim_config, /save_sd_config, /save_rtc_config, /test_sensor, /test_rs485, /start_operation, /scan_wifi, /live_data, /edit_sensor, /save_single_sensor, /delete_sensor, /api/system_status, /api/sim_test, /api/sd_status, /api/sd_clear, /api/sd_replay, /api/rtc_time, /api/rtc_sync, /api/rtc_set, /write_single_register, /write_multiple_registers, /reboot, /watchdog_control, /gpio_trigger, /logo, /favicon.ico");
+        ESP_LOGI(TAG, "[NET] All URI handlers registered successfully (including Modbus Explorer endpoints)");
+        ESP_LOGI(TAG, "[CONFIG] Available endpoints: /, /save_config, /save_azure_config, /save_network_mode, /save_sim_config, /save_sd_config, /save_rtc_config, /test_sensor, /test_rs485, /start_operation, /scan_wifi, /live_data, /edit_sensor, /save_single_sensor, /delete_sensor, /api/system_status, /api/sim_test, /api/sd_status, /api/sd_clear, /api/sd_replay, /api/rtc_time, /api/rtc_sync, /api/rtc_set, /write_single_register, /write_multiple_registers, /modbus_scan, /modbus_read_live, /reboot, /watchdog_control, /gpio_trigger, /logo, /favicon.ico");
         return ESP_OK;
     }
 
@@ -8760,6 +8951,206 @@ static esp_err_t api_azure_status_handler(httpd_req_t *req) {
         (long long)current_time
     );
 
+    httpd_resp_sendstr(req, json_response);
+    return ESP_OK;
+}
+
+// Modbus Explorer: Device Scanner Handler
+static esp_err_t modbus_scan_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "application/json");
+
+    char content[512];
+    int ret = httpd_req_recv(req, content, sizeof(content) - 1);
+    if (ret <= 0) {
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Failed to receive request\"}");
+        return ESP_FAIL;
+    }
+    content[ret] = '\0';
+
+    // Parse parameters
+    int start_id = 1, end_id = 10, test_register = 0;
+    char reg_type[16] = "holding";
+
+    char *param = strstr(content, "start_id=");
+    if (param) start_id = atoi(param + 9);
+
+    param = strstr(content, "end_id=");
+    if (param) end_id = atoi(param + 7);
+
+    param = strstr(content, "test_register=");
+    if (param) test_register = atoi(param + 14);
+
+    param = strstr(content, "reg_type=");
+    if (param) {
+        sscanf(param + 9, "%15[^&]", reg_type);
+    }
+
+    // Validate range
+    if (start_id < 1 || start_id > 247 || end_id < 1 || end_id > 247 || start_id > end_id) {
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Invalid slave ID range\"}");
+        return ESP_OK;
+    }
+
+    // Build JSON response with discovered devices
+    char json_response[2048] = "{\"status\":\"success\",\"devices\":[";
+    bool first = true;
+
+    for (int slave_id = start_id; slave_id <= end_id; slave_id++) {
+        modbus_result_t result;
+
+        if (strcmp(reg_type, "input") == 0) {
+            result = modbus_read_input_registers(slave_id, test_register, 1);
+        } else {
+            result = modbus_read_holding_registers(slave_id, test_register, 1);
+        }
+
+        if (result == MODBUS_SUCCESS) {
+            char device_entry[128];
+            snprintf(device_entry, sizeof(device_entry),
+                     "%s{\"slave_id\":%d,\"responsive\":true}",
+                     first ? "" : ",", slave_id);
+            strcat(json_response, device_entry);
+            first = false;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(50)); // Small delay between scans
+    }
+
+    strcat(json_response, "]}");
+    httpd_resp_sendstr(req, json_response);
+    return ESP_OK;
+}
+
+// Modbus Explorer: Live Register Reader Handler
+static esp_err_t modbus_read_live_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "application/json");
+
+    char content[512];
+    int ret = httpd_req_recv(req, content, sizeof(content) - 1);
+    if (ret <= 0) {
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Failed to receive request\"}");
+        return ESP_FAIL;
+    }
+    content[ret] = '\0';
+
+    // Parse parameters
+    int slave_id = 1, start_register = 0, quantity = 2;
+    char reg_type[16] = "holding";
+
+    char *param = strstr(content, "slave_id=");
+    if (param) slave_id = atoi(param + 9);
+
+    param = strstr(content, "start_register=");
+    if (param) start_register = atoi(param + 15);
+
+    param = strstr(content, "quantity=");
+    if (param) quantity = atoi(param + 9);
+
+    param = strstr(content, "reg_type=");
+    if (param) {
+        sscanf(param + 9, "%15[^&]", reg_type);
+    }
+
+    // Validate parameters
+    if (slave_id < 1 || slave_id > 247 || quantity < 1 || quantity > 10) {
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Invalid parameters\"}");
+        return ESP_OK;
+    }
+
+    // Read registers
+    modbus_result_t result;
+    if (strcmp(reg_type, "input") == 0) {
+        result = modbus_read_input_registers(slave_id, start_register, quantity);
+    } else {
+        result = modbus_read_holding_registers(slave_id, start_register, quantity);
+    }
+
+    if (result != MODBUS_SUCCESS) {
+        char error_msg[256];
+        snprintf(error_msg, sizeof(error_msg),
+                 "{\"status\":\"error\",\"message\":\"Modbus read failed\",\"error_code\":%d}", result);
+        httpd_resp_sendstr(req, error_msg);
+        return ESP_OK;
+    }
+
+    // Build JSON response with all format interpretations
+    char json_response[3072] = "{\"status\":\"success\",\"formats\":{";
+    char temp[256];
+
+    // Get register values
+    uint16_t registers[10];
+    for (int i = 0; i < quantity; i++) {
+        registers[i] = modbus_get_response_buffer(i);
+    }
+
+    // Raw hex data
+    strcat(json_response, "\"hex_string\":\"");
+    for (int i = 0; i < quantity; i++) {
+        char hex_reg[8];
+        snprintf(hex_reg, sizeof(hex_reg), "%04X", registers[i]);
+        strcat(json_response, hex_reg);
+    }
+    strcat(json_response, "\",");
+
+    // UINT16 and INT16 formats (from first register)
+    if (quantity >= 1) {
+        uint16_t uint16_be = registers[0];
+        uint16_t uint16_le = ((registers[0] & 0xFF) << 8) | ((registers[0] >> 8) & 0xFF);
+        int16_t int16_be = (int16_t)registers[0];
+        int16_t int16_le = (int16_t)uint16_le;
+
+        snprintf(temp, sizeof(temp),
+                 "\"uint16_be\":%u,\"uint16_le\":%u,\"int16_be\":%d,\"int16_le\":%d,",
+                 uint16_be, uint16_le, int16_be, int16_le);
+        strcat(json_response, temp);
+    }
+
+    // 32-bit formats (if we have at least 2 registers)
+    if (quantity >= 2) {
+        // UINT32 formats
+        uint32_t uint32_abcd = ((uint32_t)registers[0] << 16) | registers[1];
+        uint32_t uint32_dcba = ((uint32_t)(((registers[1] & 0xFF) << 8) | ((registers[1] >> 8) & 0xFF)) << 16) |
+                               (((registers[0] & 0xFF) << 8) | ((registers[0] >> 8) & 0xFF));
+        uint32_t uint32_badc = ((uint32_t)registers[1] << 16) | registers[0];
+        uint32_t uint32_cdab = ((uint32_t)(((registers[0] & 0xFF) << 8) | ((registers[0] >> 8) & 0xFF)) << 16) |
+                               (((registers[1] & 0xFF) << 8) | ((registers[1] >> 8) & 0xFF));
+
+        snprintf(temp, sizeof(temp),
+                 "\"uint32_abcd\":%u,\"uint32_dcba\":%u,\"uint32_badc\":%u,\"uint32_cdab\":%u,",
+                 (unsigned int)uint32_abcd, (unsigned int)uint32_dcba,
+                 (unsigned int)uint32_badc, (unsigned int)uint32_cdab);
+        strcat(json_response, temp);
+
+        // INT32 formats
+        int32_t int32_abcd = (int32_t)uint32_abcd;
+        int32_t int32_dcba = (int32_t)uint32_dcba;
+        int32_t int32_badc = (int32_t)uint32_badc;
+        int32_t int32_cdab = (int32_t)uint32_cdab;
+
+        snprintf(temp, sizeof(temp),
+                 "\"int32_abcd\":%d,\"int32_dcba\":%d,\"int32_badc\":%d,\"int32_cdab\":%d,",
+                 (int)int32_abcd, (int)int32_dcba, (int)int32_badc, (int)int32_cdab);
+        strcat(json_response, temp);
+
+        // FLOAT32 formats
+        union { uint32_t u; float f; } float_conv;
+
+        float_conv.u = uint32_abcd;
+        float float32_abcd = float_conv.f;
+        float_conv.u = uint32_dcba;
+        float float32_dcba = float_conv.f;
+        float_conv.u = uint32_badc;
+        float float32_badc = float_conv.f;
+        float_conv.u = uint32_cdab;
+        float float32_cdab = float_conv.f;
+
+        snprintf(temp, sizeof(temp),
+                 "\"float32_abcd\":%.6f,\"float32_dcba\":%.6f,\"float32_badc\":%.6f,\"float32_cdab\":%.6f",
+                 float32_abcd, float32_dcba, float32_badc, float32_cdab);
+        strcat(json_response, temp);
+    }
+
+    strcat(json_response, "}}");
     httpd_resp_sendstr(req, json_response);
     return ESP_OK;
 }
