@@ -187,8 +187,10 @@ static const char* html_header =
 ".alert-error{background:rgba(239,68,68,0.05);border-color:var(--color-error);color:var(--error-600)}"
 "/* ===== SCADACORE FORMAT TABLE ===== */"
 ".scada-table{width:100%;border-collapse:collapse;margin-top:var(--space-md);font-size:var(--text-sm);box-shadow:var(--shadow-sm);border-radius:var(--radius-md);overflow:hidden;table-layout:fixed}"
-".scada-table th{padding:var(--space-md);font-weight:var(--weight-bold);text-align:center;color:white;font-family:Orbitron,monospace}"
-".scada-table td{padding:var(--space-sm) var(--space-md);border-bottom:1px solid var(--color-border-light);text-align:left}"
+".scada-table th{padding:var(--space-md);font-weight:var(--weight-bold);text-align:center;color:white;font-family:Orbitron,monospace;word-wrap:break-word}"
+".scada-table td{padding:var(--space-sm) var(--space-md);border-bottom:1px solid var(--color-border-light);text-align:left;word-wrap:break-word;overflow-wrap:break-word;white-space:normal}"
+".scada-table td:first-child{width:50%;font-weight:var(--weight-semibold)}"
+".scada-table td:last-child{width:50%;text-align:right;font-family:monospace}"
 ".scada-table tr:last-child td{border-bottom:none}"
 ".scada-table tr:nth-child(even){background:var(--color-bg-secondary)}"
 ".scada-table strong{color:var(--color-primary);font-weight:var(--weight-semibold)}"
@@ -5289,22 +5291,23 @@ static esp_err_t test_sensor_handler(httpd_req_t *req)
                 snprintf(value_desc, sizeof(value_desc), "Level %.2f%%", display_value);
             } else if (strcmp(sensor->sensor_type, "ZEST") == 0 && reg_count >= 4) {
                 // ZEST sensor special handling - 4-register format
-                // Registers [0,1]: INT32 Big Endian (ABCD)
-                // Registers [2,3]: INT32 Little Endian Byte Swap (DCBA)
+                // Register[0]: Integer part (UINT16)
+                // Register[1]: Unused (0x0000)
+                // Registers[2-3]: Decimal part (FLOAT32 Big Endian ABCD)
 
-                // First 2 registers as INT32 Big Endian
-                uint32_t int32_be = ((uint32_t)registers[0] << 16) | registers[1];
-                int32_t signed_value1 = (int32_t)int32_be;
-                double value1 = (double)signed_value1 * sensor->scale_factor;
+                // Integer part from register[0]
+                uint32_t integer_part = (uint32_t)registers[0];
+                double value1 = (double)integer_part;
 
-                // Next 2 registers as INT32 Little Endian Byte Swap
-                uint32_t int32_le_swap = ((uint32_t)registers[3] << 16) | registers[2];
-                int32_t signed_value2 = (int32_t)int32_le_swap;
-                double value2 = (double)signed_value2 * sensor->scale_factor;
+                // Decimal part from registers[2-3] as IEEE 754 float
+                uint32_t float_bits = ((uint32_t)registers[2] << 16) | registers[3];
+                float decimal_float;
+                memcpy(&decimal_float, &float_bits, sizeof(float));
+                double value2 = (double)decimal_float;
 
-                display_value = value1 + value2;
-                snprintf(value_desc, sizeof(value_desc), "ZEST: INT32_BE(%ld) + INT32_LE_SWAP(%ld) = %.6f",
-                         (long)signed_value1, (long)signed_value2, display_value);
+                display_value = (value1 + value2) * sensor->scale_factor;
+                snprintf(value_desc, sizeof(value_desc), "ZEST: UINT16(%lu) + FLOAT32(%.6f) = %.6f",
+                         (unsigned long)integer_part, value2, display_value);
             } else {
                 snprintf(value_desc, sizeof(value_desc), "%s×%.3f", sensor->data_type, sensor->scale_factor);
             }
