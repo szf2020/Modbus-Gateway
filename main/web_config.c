@@ -2605,10 +2605,6 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "</div>"
     );
 
-    // Monitoring section
-    snprintf(chunk, sizeof(chunk),
-    );
-    
     httpd_resp_sendstr_chunk(req, "</div>");
     
     // Add debug info if no sensors at all
@@ -4849,7 +4845,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
     );
 
     // Modbus Explorer section
-    httpd_resp_sendstr_chunk(req,
+    snprintf(chunk, sizeof(chunk),
         "<div id='monitoring' class='section'>"
         "<h2 class='section-title'><i>🖥️</i>System Monitor</h2>"
         ""
