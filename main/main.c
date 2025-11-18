@@ -1645,6 +1645,7 @@ static bool send_telemetry(void) {
         ESP_LOGI(TAG, "   Waiting for MQTT_EVENT_PUBLISHED confirmation...");
         telemetry_send_count++;
         total_telemetry_sent++; // Increment counter for web interface (Azure IoT doesn't send PUBACK)
+        last_telemetry_time = esp_timer_get_time() / 1000000; // Update last telemetry timestamp
         last_actual_send_time = current_time; // Record successful send time
 
         // Log detailed publish info
