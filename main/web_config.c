@@ -8744,7 +8744,7 @@ static esp_err_t api_azure_status_handler(httpd_req_t *req) {
         (unsigned long)mqtt_reconnect_count,
         (long long)time_since_telemetry,
         g_system_config.telemetry_interval,
-        g_system_config.azure_hub_name,
+        g_system_config.azure_hub_fqdn,
         g_system_config.azure_device_id,
         (long long)current_time
     );
