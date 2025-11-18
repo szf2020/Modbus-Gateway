@@ -2605,8 +2605,6 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "</div>"
     );
 
-    httpd_resp_sendstr_chunk(req, "</div>");
-    
     // Add debug info if no sensors at all
     if (g_system_config.sensor_count == 0) {
         httpd_resp_sendstr_chunk(req, 
@@ -2621,9 +2619,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
     }
 
     // Close the sensors section
-    httpd_resp_sendstr_chunk(req, 
-        "</div>"
-        "</form>");
+    httpd_resp_sendstr_chunk(req, "</div>");
     
     // JavaScript - split into smaller chunks  
     snprintf(chunk, sizeof(chunk),
@@ -4779,9 +4775,6 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "console.log('Script loaded successfully. addSensor function defined:', typeof addSensor);"
         "</script>");
     
-    // Close sensors section
-    httpd_resp_sendstr_chunk(req,
-        "</div>"); // Close sensors section
 
     // Write Operations section
     httpd_resp_sendstr_chunk(req,
