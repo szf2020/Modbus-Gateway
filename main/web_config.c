@@ -9432,14 +9432,20 @@ esp_err_t web_config_start_ap_mode(void)
             // Check if we should auto-start web server for initial configuration
             if (g_web_server_auto_start && g_config_state == CONFIG_STATE_SETUP) {
                 ESP_LOGI(TAG, "Auto-starting web server for initial configuration...");
-                // Start web server with AP mode
-                esp_err_t web_ret = web_server_start_with_ap();
-                if (web_ret == ESP_OK) {
-                    ESP_LOGI(TAG, "[OK] Web server started automatically for initial setup");
-                    ESP_LOGI(TAG, "[WIFI] Connect to WiFi: 'ModbusIoT-Config' (password: config123)");
-                    ESP_LOGI(TAG, "[WEB] Then visit: http://192.168.4.1 to configure");
+                // Start AP mode first
+                esp_err_t ap_ret = web_config_start_ap_mode();
+                if (ap_ret == ESP_OK) {
+                    // Then start the web server
+                    esp_err_t web_ret = web_config_start_server_only();
+                    if (web_ret == ESP_OK) {
+                        ESP_LOGI(TAG, "[OK] Web server started automatically for initial setup");
+                        ESP_LOGI(TAG, "[WIFI] Connect to WiFi: 'ModbusIoT-Config' (password: config123)");
+                        ESP_LOGI(TAG, "[WEB] Then visit: http://192.168.4.1 to configure");
+                    } else {
+                        ESP_LOGE(TAG, "Failed to start web server: %s", esp_err_to_name(web_ret));
+                    }
                 } else {
-                    ESP_LOGE(TAG, "Failed to auto-start web server: %s", esp_err_to_name(web_ret));
+                    ESP_LOGE(TAG, "Failed to start AP mode: %s", esp_err_to_name(ap_ret));
                 }
                 g_web_server_auto_start = false; // Reset flag after attempt
             }
