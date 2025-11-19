@@ -62,6 +62,7 @@ extern int64_t last_telemetry_time;
 static system_config_t g_system_config = {0};
 static config_state_t g_config_state = CONFIG_STATE_SETUP;
 static httpd_handle_t g_server = NULL;
+static bool g_web_server_auto_start = false;
 // static esp_netif_t *g_netif_sta = NULL;  // Unused variable
 // static esp_netif_t *g_netif_ap = NULL;  // Reserved for future AP mode
 
@@ -8469,8 +8470,12 @@ esp_err_t web_config_init(void)
     } else {
         g_config_state = CONFIG_STATE_SETUP;
         ESP_LOGI(TAG, "No configuration found, starting in setup mode");
+        // Automatically start web server for initial configuration
+        ESP_LOGI(TAG, "Starting web server for initial configuration...");
+        // Set flag to start web server after WiFi initialization
+        g_web_server_auto_start = true;
     }
-    
+
     return ESP_OK;
 }
 
@@ -9422,7 +9427,22 @@ esp_err_t web_config_start_ap_mode(void)
         // Log connection status
         if (strlen(g_system_config.wifi_ssid) == 0) {
             ESP_LOGW(TAG, "WiFi SSID not configured - WiFi started but not connecting");
-            ESP_LOGI(TAG, "💡 Use GPIO trigger to start web config AP mode");
+            ESP_LOGI(TAG, "[TIP] Use GPIO trigger to start web config AP mode");
+
+            // Check if we should auto-start web server for initial configuration
+            if (g_web_server_auto_start && g_config_state == CONFIG_STATE_SETUP) {
+                ESP_LOGI(TAG, "Auto-starting web server for initial configuration...");
+                // Start web server with AP mode
+                esp_err_t web_ret = web_server_start_with_ap();
+                if (web_ret == ESP_OK) {
+                    ESP_LOGI(TAG, "[OK] Web server started automatically for initial setup");
+                    ESP_LOGI(TAG, "[WIFI] Connect to WiFi: 'ModbusIoT-Config' (password: config123)");
+                    ESP_LOGI(TAG, "[WEB] Then visit: http://192.168.4.1 to configure");
+                } else {
+                    ESP_LOGE(TAG, "Failed to auto-start web server: %s", esp_err_to_name(web_ret));
+                }
+                g_web_server_auto_start = false; // Reset flag after attempt
+            }
         } else {
             ESP_LOGI(TAG, "Connecting to WiFi SSID: %s", g_system_config.wifi_ssid);
         }
