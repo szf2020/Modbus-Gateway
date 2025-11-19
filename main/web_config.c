@@ -452,6 +452,53 @@ static const char* html_header =
 "@media (min-width:1440px){"
 ".main-content{margin-left:320px;padding:var(--space-2xl)}"
 "}"
+"/* ===== MINIMAL MOBILE FIXES - ONLY FOR SPECIFIC ELEMENTS ===== */"
+"@media screen and (max-width:768px){"
+"/* Fix button sizes on mobile - make them smaller */"
+"button[style*='padding:12px 30px'],"
+"button[style*='padding:12px 28px'],"
+"button[style*='padding:12px 25px'],"
+"button[style*='padding:14px 35px']{"
+"padding:8px 16px!important;"
+"font-size:14px!important"
+"}"
+"/* Fix save buttons specifically */"
+"button[type='submit']{"
+"padding:8px 20px!important;"
+"font-size:14px!important"
+"}"
+"/* Fix checkbox sizes - make them normal */"
+"input[type='checkbox']{"
+"width:16px!important;"
+"height:16px!important;"
+"margin-right:6px!important"
+"}"
+"/* Fix menu/navigation buttons - make them bigger */"
+".menu-item,.nav-link{"
+"padding:10px 15px!important;"
+"font-size:14px!important"
+"}"
+".menu-item button{"
+"padding:10px 15px!important;"
+"font-size:14px!important"
+"}"
+"/* Fix Normal to Operation mode button specifically */"
+"button[onclick*='switchToOperation'],"
+"button[onclick*='rebootSystem']{"
+"padding:8px 20px!important;"
+"font-size:14px!important"
+"}"
+"/* Ensure minimum touch target but not too big */"
+"button{"
+"min-height:36px!important;"
+"max-height:44px!important"
+"}"
+"/* Fix sidebar buttons if needed */"
+".sidebar button{"
+"padding:8px 12px!important;"
+"font-size:13px!important"
+"}"
+"}"
 "</style>"
 "<script>"
 "function showSection(sectionId){"
@@ -6717,8 +6764,9 @@ static esp_err_t test_rs485_handler(httpd_req_t *req)
         // esp_task_wdt_reset();
         
         // Build comprehensive HTML table response like saved sensors (for <= 3 registers)
-        char *data_output = malloc(1200);
-        char *temp = malloc(300);
+        // Increased buffer size to handle ZEST sensor data properly (4 registers)
+        char *data_output = malloc(2400);
+        char *temp = malloc(500);
         if (!data_output || !temp) {
             ESP_LOGE(TAG, "Failed to allocate data buffers");
             if (data_output) free(data_output);
@@ -6727,9 +6775,9 @@ static esp_err_t test_rs485_handler(httpd_req_t *req)
             httpd_resp_send_500(req);
             return ESP_FAIL;
         }
-        
-        memset(data_output, 0, 1200);
-        memset(temp, 0, 300);
+
+        memset(data_output, 0, 2400);
+        memset(temp, 0, 500);
         
         // Success header with styling like saved sensors
         strcat(data_output, "<div style='background:#e8f5e8;padding:10px;border-radius:5px;margin:5px 0'>");
@@ -6878,6 +6926,15 @@ static esp_err_t test_rs485_handler(httpd_req_t *req)
                 primary_value = (double)(int16_t)registers[0];
             }
             snprintf(primary_desc, sizeof(primary_desc), "INT16 (%s)", data_type);
+        } else if (strstr(data_type, "ZEST_FIXED") && reg_count >= 4) {
+            // ZEST_FIXED: Special format - INT32_BE (first 2 registers) + INT32_LE_SWAP (last 2 registers)
+            // First value: INT32 big-endian from registers[0] and registers[1]
+            int32_t first_value = (int32_t)(((uint32_t)registers[0] << 16) | registers[1]);
+            // Second value: INT32 with byte swap from registers[2] and registers[3]
+            int32_t second_value = (int32_t)(((uint32_t)registers[3] << 16) | registers[2]);
+            // Use first value as primary for display
+            primary_value = (double)first_value;
+            snprintf(primary_desc, sizeof(primary_desc), "ZEST_FIXED (INT32_BE: %d, INT32_SWAP: %d)", first_value, second_value);
         } else if (strstr(data_type, "ASCII") && reg_count >= 1) {
             // ASCII - show first character's ASCII value
             primary_value = (double)((registers[0] >> 8) & 0xFF);
@@ -6924,33 +6981,33 @@ static esp_err_t test_rs485_handler(httpd_req_t *req)
             snprintf(scale_desc, sizeof(scale_desc), "×%.3f", scale_factor);
         }
         
-        snprintf(temp, 300, "<strong>Primary Value:</strong> %.6f (%s) | <strong>Scaled Value:</strong> %.6f (%s)<br>", 
+        snprintf(temp, 500, "<strong>Primary Value:</strong> %.6f (%s) | <strong>Scaled Value:</strong> %.6f (%s)<br>",
                  primary_value, primary_desc, scaled_value, scale_desc);
         strcat(data_output, temp);
-        
+
         // Add Level Filled display for Level and Radar Level sensors
         if (strcmp(sensor_type, "Level") == 0 && max_water_level > 0) {
-            snprintf(temp, 300, "<strong>Level Filled:</strong> %.2f%% (Calculated using formula: (%.2f - %.6f) / %.2f * 100)<br>", 
+            snprintf(temp, 500, "<strong>Level Filled:</strong> %.2f%% (Calculated using formula: (%.2f - %.6f) / %.2f * 100)<br>",
                      scaled_value, sensor_height, primary_value, max_water_level);
             strcat(data_output, temp);
         } else if (strcmp(sensor_type, "Radar Level") == 0 && max_water_level > 0) {
-            snprintf(temp, 300, "<strong>Level Filled:</strong> %.2f%% (Calculated using formula: %.6f / %.2f * 100)<br>", 
+            snprintf(temp, 500, "<strong>Level Filled:</strong> %.2f%% (Calculated using formula: %.6f / %.2f * 100)<br>",
                      scaled_value, primary_value, max_water_level);
             strcat(data_output, temp);
         }
-        
+
         // Raw registers
         strcat(data_output, "<strong>Raw Registers:</strong> [");
         for (int i = 0; i < reg_count; i++) {
-            snprintf(temp, 300, "%s%d", i > 0 ? ", " : "", registers[i]);
+            snprintf(temp, 500, "%s%d", i > 0 ? ", " : "", registers[i]);
             strcat(data_output, temp);
         }
         strcat(data_output, "]<br>");
-        
+
         // Hex string
         strcat(data_output, "<strong>HexString:</strong> ");
         for (int i = 0; i < reg_count; i++) {
-            snprintf(temp, 300, "%04X", registers[i]);
+            snprintf(temp, 500, "%04X", registers[i]);
             strcat(data_output, temp);
         }
         strcat(data_output, "<br>");
@@ -6963,50 +7020,50 @@ static esp_err_t test_rs485_handler(httpd_req_t *req)
         if (reg_count >= 1) {
             uint8_t high_byte = (registers[0] >> 8) & 0xFF;
             uint8_t low_byte = registers[0] & 0xFF;
-            snprintf(temp, 300, 
+            snprintf(temp, 500,
                      "<tr><td><strong>INT8 (High):</strong> %d</td><td><strong>INT8 (Low):</strong> %d</td><td><strong>UINT8 (High):</strong> %u</td><td><strong>UINT8 (Low):</strong> %u</td></tr>",
                      (int8_t)high_byte, (int8_t)low_byte, high_byte, low_byte);
             strcat(data_output, temp);
             vTaskDelay(pdMS_TO_TICKS(1)); // Yield after section
         }
-        
+
         // 16-bit interpretations (1 register)
         if (reg_count >= 1) {
             uint16_t reg0 = registers[0];
             uint16_t reg0_le = ((reg0 & 0xFF) << 8) | ((reg0 >> 8) & 0xFF);
-            snprintf(temp, 300, 
+            snprintf(temp, 500,
                      "<tr style='background:#f8f8f8'><td><strong>INT16_HI:</strong> %d</td><td><strong>INT16_LO:</strong> %d</td><td><strong>UINT16_HI:</strong> %u</td><td><strong>UINT16_LO:</strong> %u</td></tr>",
                      (int16_t)reg0, (int16_t)reg0_le, reg0, reg0_le);
             strcat(data_output, temp);
             vTaskDelay(pdMS_TO_TICKS(1)); // Yield after section
         }
-        
+
         // 32-bit interpretations (2 registers)
         if (reg_count >= 2) {
             uint32_t val_1234 = ((uint32_t)registers[0] << 16) | registers[1];
             uint32_t val_4321 = ((uint32_t)registers[1] << 16) | registers[0];
-            uint32_t val_2143 = ((uint32_t)(((registers[0] & 0xFF) << 8) | ((registers[0] >> 8) & 0xFF)) << 16) | 
+            uint32_t val_2143 = ((uint32_t)(((registers[0] & 0xFF) << 8) | ((registers[0] >> 8) & 0xFF)) << 16) |
                                (((registers[1] & 0xFF) << 8) | ((registers[1] >> 8) & 0xFF));
-            uint32_t val_3412 = ((uint32_t)(((registers[1] & 0xFF) << 8) | ((registers[1] >> 8) & 0xFF)) << 16) | 
+            uint32_t val_3412 = ((uint32_t)(((registers[1] & 0xFF) << 8) | ((registers[1] >> 8) & 0xFF)) << 16) |
                                (((registers[0] & 0xFF) << 8) | ((registers[0] >> 8) & 0xFF));
-                           
+
             // 32-bit Float interpretations
             union { uint32_t i; float f; } conv_1234, conv_4321, conv_2143, conv_3412;
             conv_1234.i = val_1234; conv_4321.i = val_4321; conv_2143.i = val_2143; conv_3412.i = val_3412;
-            
-            snprintf(temp, 300, 
+
+            snprintf(temp, 500,
                      "<tr><td><strong>FLOAT32_1234:</strong> %.3e</td><td><strong>FLOAT32_4321:</strong> %.3e</td><td><strong>FLOAT32_2143:</strong> %.3e</td><td><strong>FLOAT32_3412:</strong> %.3e</td></tr>",
                      conv_1234.f, conv_4321.f, conv_2143.f, conv_3412.f);
             strcat(data_output, temp);
             
             // 32-bit Integer interpretations
-            snprintf(temp, 300, 
+            snprintf(temp, 500,
                      "<tr style='background:#f8f8f8'><td><strong>INT32_1234:</strong> %ld</td><td><strong>INT32_3412:</strong> %ld</td><td><strong>INT32_2143:</strong> %ld</td><td><strong>INT32_4321:</strong> %ld</td></tr>",
                      (int32_t)val_1234, (int32_t)val_4321, (int32_t)val_2143, (int32_t)val_3412);
             strcat(data_output, temp);
-            
+
             // 32-bit Unsigned Integer interpretations
-            snprintf(temp, 300, 
+            snprintf(temp, 500,
                      "<tr><td><strong>UINT32_1234:</strong> %lu</td><td><strong>UINT32_4321:</strong> %lu</td><td><strong>UINT32_2143:</strong> %lu</td><td><strong>UINT32_3412:</strong> %lu</td></tr>",
                      val_1234, val_4321, val_2143, val_3412);
             strcat(data_output, temp);
@@ -7028,7 +7085,7 @@ static esp_err_t test_rs485_handler(httpd_req_t *req)
             union { uint64_t i; double d; } conv64_12345678, conv64_87654321;
             conv64_12345678.i = val64_12345678; conv64_87654321.i = val64_87654321;
             
-            snprintf(temp, 300, 
+            snprintf(temp, 500,
                      "<tr><td><strong>FLOAT64_12345678:</strong> %.3e</td><td><strong>FLOAT64_87654321:</strong> %.3e</td><td><strong>ASCII (4 chars):</strong> %c%c%c%c</td><td><strong>HEX:</strong> 0x%04X%04X%04X%04X</td></tr>",
                      conv64_12345678.d, conv64_87654321.d,
                      (char)(registers[0] >> 8), (char)(registers[0] & 0xFF), (char)(registers[1] >> 8), (char)(registers[1] & 0xFF),
@@ -7036,7 +7093,7 @@ static esp_err_t test_rs485_handler(httpd_req_t *req)
             strcat(data_output, temp);
         } else if (reg_count >= 2) {
             // ASCII and HEX for 2 registers
-            snprintf(temp, 300, 
+            snprintf(temp, 500,
                      "<tr style='background:#f0f0f0'><td><strong>ASCII (2 chars):</strong> %c%c</td><td><strong>HEX:</strong> 0x%04X%04X</td><td><strong>BOOL (R0):</strong> %s</td><td><strong>BOOL (R1):</strong> %s</td></tr>",
                      (char)(registers[0] >> 8), (char)(registers[0] & 0xFF),
                      registers[0], registers[1],
@@ -7044,22 +7101,23 @@ static esp_err_t test_rs485_handler(httpd_req_t *req)
             strcat(data_output, temp);
         } else if (reg_count >= 1) {
             // Single register special formats
-            snprintf(temp, 300, 
+            snprintf(temp, 500,
                      "<tr style='background:#f0f0f0'><td><strong>ASCII (1 char):</strong> %c</td><td><strong>HEX:</strong> 0x%04X</td><td><strong>BOOL:</strong> %s</td><td><strong>PDU:</strong> Raw</td></tr>",
                      (char)(registers[0] >> 8), registers[0],
                      registers[0] ? "True" : "False");
             strcat(data_output, temp);
         }
-        
+
         // Close table and div
         strcat(data_output, "</table></div>");
-        
+
         // Feed watchdog before largest memory allocation and JSON escaping
         // Skip watchdog reset in HTTP handler (task not registered with watchdog)
         // esp_task_wdt_reset();
-        
+
         // Build final JSON response - properly escape HTML for JSON
-        char *escaped_output = malloc(2000);
+        // Increased buffer size for ZEST sensor handling
+        char *escaped_output = malloc(4000);
         if (!escaped_output) {
             ESP_LOGE(TAG, "Failed to allocate escape buffer");
             free(data_output);
@@ -7071,7 +7129,7 @@ static esp_err_t test_rs485_handler(httpd_req_t *req)
         
         // Enhanced JSON escaping for HTML content
         int j = 0;
-        for (int i = 0; data_output[i] && j < 1980; i++) {
+        for (int i = 0; data_output[i] && j < 3980; i++) {
             // Yield frequently during intensive JSON escaping to prevent watchdog timeout
             if (i % 100 == 0) {
                 vTaskDelay(pdMS_TO_TICKS(1)); // Brief yield to prevent blocking
