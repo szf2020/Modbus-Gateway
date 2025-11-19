@@ -6934,7 +6934,7 @@ static esp_err_t test_rs485_handler(httpd_req_t *req)
             int32_t second_value = (int32_t)(((uint32_t)registers[3] << 16) | registers[2]);
             // Use first value as primary for display
             primary_value = (double)first_value;
-            snprintf(primary_desc, sizeof(primary_desc), "ZEST_FIXED (INT32_BE: %d, INT32_SWAP: %d)", first_value, second_value);
+            snprintf(primary_desc, sizeof(primary_desc), "ZEST_FIXED (INT32_BE: %ld, INT32_SWAP: %ld)", first_value, second_value);
         } else if (strstr(data_type, "ASCII") && reg_count >= 1) {
             // ASCII - show first character's ASCII value
             primary_value = (double)((registers[0] >> 8) & 0xFF);
