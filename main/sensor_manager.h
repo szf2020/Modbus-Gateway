@@ -20,7 +20,7 @@ typedef struct {
 typedef struct {
     double ph_value;        // pH level
     double tds_value;       // Total Dissolved Solids (ppm)
-    double temp_value;      // Temperature (°C)
+    double temp_value;      // Temperature (degC)
     double humidity_value;  // Humidity (%)
     double tss_value;       // Total Suspended Solids (mg/L)
     double bod_value;       // Biochemical Oxygen Demand (mg/L)

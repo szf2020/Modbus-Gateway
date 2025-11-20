@@ -33,7 +33,7 @@ typedef struct {
     char register_type[16];    // HOLDING, INPUT
     float scale_factor;
     char byte_order[16];       // BIG_ENDIAN, LITTLE_ENDIAN, etc.
-    char units[16];            // pH, °C, ppm, etc.
+    char units[16];            // pH, degC, ppm, etc.
 } sub_sensor_t;
 
 // Sensor configuration structure

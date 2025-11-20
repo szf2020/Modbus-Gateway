@@ -242,9 +242,9 @@ esp_err_t ds3231_sync_system_time(void) {
     char time_str[64];
     strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &timeinfo);
 
-    ESP_LOGI(TAG, "╔════════════════════════════════════════╗");
-    ESP_LOGI(TAG, "║   ✅ SYSTEM TIME SYNCED FROM RTC!     ║");
-    ESP_LOGI(TAG, "╚════════════════════════════════════════╝");
+    ESP_LOGI(TAG, "+========================================+");
+    ESP_LOGI(TAG, "|   ✅ SYSTEM TIME SYNCED FROM RTC!     |");
+    ESP_LOGI(TAG, "+========================================+");
     ESP_LOGI(TAG, "📅 Current UTC time: %s", time_str);
     ESP_LOGI(TAG, "🕐 Unix timestamp: %ld", (long)now);
 

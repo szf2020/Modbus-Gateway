@@ -316,9 +316,9 @@ static void on_ip_event(void *arg, esp_event_base_t event_base,
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         esp_netif_ip_info_t *ip_info = &event->ip_info;
 
-        ESP_LOGI(TAG, "╔════════════════════════════════════════╗");
-        ESP_LOGI(TAG, "║   PPP CONNECTED - GOT IP ADDRESS!      ║");
-        ESP_LOGI(TAG, "╚════════════════════════════════════════╝");
+        ESP_LOGI(TAG, "+========================================+");
+        ESP_LOGI(TAG, "|   PPP CONNECTED - GOT IP ADDRESS!      |");
+        ESP_LOGI(TAG, "+========================================+");
         ESP_LOGI(TAG, "📡 IP: " IPSTR, IP2STR(&ip_info->ip));
         ESP_LOGI(TAG, "📡 Gateway: " IPSTR, IP2STR(&ip_info->gw));
 
@@ -418,9 +418,9 @@ esp_err_t a7670c_ppp_init(const ppp_config_t* config) {
 esp_err_t a7670c_ppp_connect(void) {
     esp_err_t ret;
 
-    ESP_LOGI(TAG, "═══════════════════════════════════════════");
+    ESP_LOGI(TAG, "===========================================");
     ESP_LOGI(TAG, "📡 Initializing A7670C Modem...");
-    ESP_LOGI(TAG, "═══════════════════════════════════════════");
+    ESP_LOGI(TAG, "===========================================");
 
     // Check if we need to reset modem due to repeated failures
     if (modem_init_failures >= MAX_MODEM_INIT_FAILURES) {

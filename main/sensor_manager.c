@@ -533,7 +533,7 @@ esp_err_t sensor_read_quality(const sensor_config_t *sensor, sensor_reading_t *r
                 ESP_LOGI(TAG, "TDS: %.2f ppm", scaled_value);
             } else if (strcmp(sub_sensor->json_key, "Temp") == 0) {
                 reading->quality_params.temp_value = scaled_value;
-                ESP_LOGI(TAG, "Temperature: %.2f°C", scaled_value);
+                ESP_LOGI(TAG, "Temperature: %.2fdegC", scaled_value);
             } else if (strcmp(sub_sensor->json_key, "HUMIDITY") == 0) {
                 reading->quality_params.humidity_value = scaled_value;
                 ESP_LOGI(TAG, "Humidity: %.2f%%", scaled_value);
@@ -559,7 +559,7 @@ esp_err_t sensor_read_quality(const sensor_config_t *sensor, sensor_reading_t *r
         reading->valid = true;
         reading->value = reading->quality_params.ph_value; // Use pH as primary value
         strcpy(reading->data_source, "modbus_rs485_multi");
-        ESP_LOGI(TAG, "Water Quality Sensor %s: pH=%.2f, TDS=%.2f, Temp=%.2f°C, Humidity=%.2f%%, TSS=%.2f, BOD=%.2f, COD=%.2f", 
+        ESP_LOGI(TAG, "Water Quality Sensor %s: pH=%.2f, TDS=%.2f, Temp=%.2fdegC, Humidity=%.2f%%, TSS=%.2f, BOD=%.2f, COD=%.2f", 
                  reading->unit_id, 
                  reading->quality_params.ph_value, reading->quality_params.tds_value,
                  reading->quality_params.temp_value, reading->quality_params.humidity_value,

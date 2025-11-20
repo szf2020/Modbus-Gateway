@@ -66,12 +66,12 @@ esp_err_t modbus_init(void)
 
     ESP_LOGI(TAG, "[CONFIG] Initializing Modbus RS485 Communication");
     ESP_LOGI(TAG, "[LOC] Hardware Configuration:");
-    ESP_LOGI(TAG, "   • UART Port: UART%d", RS485_UART_PORT);
-    ESP_LOGI(TAG, "   • Default Baud Rate: %d bps", RS485_BAUD_RATE);
-    ESP_LOGI(TAG, "   • TX Pin: GPIO %d", TXD2);
-    ESP_LOGI(TAG, "   • RX Pin: GPIO %d", RXD2);
-    ESP_LOGI(TAG, "   • RTS Pin: GPIO %d", RS485_RTS_PIN);
-    ESP_LOGI(TAG, "   • Buffer Size: %d bytes", RS485_BUF_SIZE);
+    ESP_LOGI(TAG, "   * UART Port: UART%d", RS485_UART_PORT);
+    ESP_LOGI(TAG, "   * Default Baud Rate: %d bps", RS485_BAUD_RATE);
+    ESP_LOGI(TAG, "   * TX Pin: GPIO %d", TXD2);
+    ESP_LOGI(TAG, "   * RX Pin: GPIO %d", RXD2);
+    ESP_LOGI(TAG, "   * RTS Pin: GPIO %d", RS485_RTS_PIN);
+    ESP_LOGI(TAG, "   * Buffer Size: %d bytes", RS485_BUF_SIZE);
 
     current_baud_rate = RS485_BAUD_RATE;
     
@@ -119,11 +119,11 @@ esp_err_t modbus_init(void)
     
     ESP_LOGI(TAG, "[DONE] Modbus RS485 initialization complete!");
     ESP_LOGI(TAG, "[INFO] Connection Guide:");
-    ESP_LOGI(TAG, "   • Connect RS485 A+ to GPIO %d", TXD2);
-    ESP_LOGI(TAG, "   • Connect RS485 B- to GPIO %d", RXD2);
-    ESP_LOGI(TAG, "   • Connect RTS to GPIO %d", RS485_RTS_PIN);
-    ESP_LOGI(TAG, "   • Ensure common ground connection");
-    ESP_LOGI(TAG, "   • Check device baud rate matches %d bps", RS485_BAUD_RATE);
+    ESP_LOGI(TAG, "   * Connect RS485 A+ to GPIO %d", TXD2);
+    ESP_LOGI(TAG, "   * Connect RS485 B- to GPIO %d", RXD2);
+    ESP_LOGI(TAG, "   * Connect RTS to GPIO %d", RS485_RTS_PIN);
+    ESP_LOGI(TAG, "   * Ensure common ground connection");
+    ESP_LOGI(TAG, "   * Check device baud rate matches %d bps", RS485_BAUD_RATE);
 
     modbus_reset_statistics();
 
@@ -242,10 +242,10 @@ static modbus_result_t modbus_send_request(uint8_t slave_id, uint8_t function_co
         if (response_length == 0) {
             ESP_LOGE(TAG, "[ERROR] No response from Modbus device (timeout)");
             ESP_LOGE(TAG, "[CONFIG] Troubleshooting:");
-            ESP_LOGE(TAG, "   • Check RS485 wiring (A+, B-, GND)");
-            ESP_LOGE(TAG, "   • Verify slave ID (%d) is correct", slave_id);
-            ESP_LOGE(TAG, "   • Check baud rate (%d bps)", RS485_BAUD_RATE);
-            ESP_LOGE(TAG, "   • Ensure device is powered and connected");
+            ESP_LOGE(TAG, "   * Check RS485 wiring (A+, B-, GND)");
+            ESP_LOGE(TAG, "   * Verify slave ID (%d) is correct", slave_id);
+            ESP_LOGE(TAG, "   * Check baud rate (%d bps)", RS485_BAUD_RATE);
+            ESP_LOGE(TAG, "   * Ensure device is powered and connected");
         } else {
             ESP_LOGE(TAG, "[ERROR] Invalid response length: %d bytes (minimum 5 required)", response_length);
         }

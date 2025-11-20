@@ -1025,11 +1025,11 @@ esp_err_t test_sensor_connection(const sensor_config_t *sensor, char *result_buf
                  "Register: %d (%s)<br>"
                  "Quantity: %d registers<br>"
                  "<strong>Troubleshooting:</strong><br>"
-                 "• Check RS485 wiring (A+, B-, GND)<br>"
-                 "• Verify device is powered and functional<br>"
-                 "• Confirm slave ID matches device configuration<br>"
-                 "• Check register address is valid for this device<br>"
-                 "• Ensure baud rate and parity settings match device",
+                 "* Check RS485 wiring (A+, B-, GND)<br>"
+                 "* Verify device is powered and functional<br>"
+                 "* Confirm slave ID matches device configuration<br>"
+                 "* Check register address is valid for this device<br>"
+                 "* Ensure baud rate and parity settings match device",
                  modbus_result, error_description, sensor->slave_id, sensor->register_address,
                  sensor->register_type[0] ? sensor->register_type : "HOLDING", sensor->quantity);
         
@@ -2870,7 +2870,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "}"
         "var qualityParameterTypes = ["
         "  {key: 'pH', name: 'pH', units: 'pH', description: 'Acidity/Alkalinity measurement'},"
-        "  {key: 'Temp', name: 'Temp', units: '°C', description: 'Water temperature sensor'},"
+        "  {key: 'Temp', name: 'Temp', units: 'degC', description: 'Water temperature sensor'},"
         "  {key: 'HUMIDITY', name: 'HUMIDITY', units: '%RH', description: 'Relative humidity measurement'},"
         "  {key: 'TDS', name: 'TDS', units: 'ppm', description: 'Total dissolved solids concentration'},"
         "  {key: 'TSS', name: 'TSS', units: 'mg/L', description: 'Total suspended solids'},"
@@ -3842,7 +3842,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "const signalColor=n.rssi>-50?'#28a745':n.rssi>-70?'#ffc107':'#dc3545';"
         "item.className='network-item';"
         "item.style.cssText='padding:12px;cursor:pointer;border-radius:6px;margin:4px 0;background:white;border:1px solid #e0e0e0;transition:all 0.2s ease';"
-        "item.innerHTML='<div style=\"display:flex;justify-content:space-between;align-items:center\"><div><div style=\"display:flex;align-items:center;gap:8px\"><strong style=\"color:#2c3e50\">'+n.ssid+'</strong>'+n.security_icon+'</div><small style=\"color:#666;margin-top:2px;display:block\">Channel '+n.channel+' • '+n.signal_strength+'</small></div><div style=\"text-align:right\"><div style=\"color:'+signalColor+';font-weight:bold;font-size:13px\">'+n.rssi+'dBm</div><small style=\"color:#888\">'+n.signal_icon+'</small></div></div>';"
+        "item.innerHTML='<div style=\"display:flex;justify-content:space-between;align-items:center\"><div><div style=\"display:flex;align-items:center;gap:8px\"><strong style=\"color:#2c3e50\">'+n.ssid+'</strong>'+n.security_icon+'</div><small style=\"color:#666;margin-top:2px;display:block\">Channel '+n.channel+' * '+n.signal_strength+'</small></div><div style=\"text-align:right\"><div style=\"color:'+signalColor+';font-weight:bold;font-size:13px\">'+n.rssi+'dBm</div><small style=\"color:#888\">'+n.signal_icon+'</small></div></div>';"
         "item.onmouseover=()=>{item.style.background='#e3f2fd';item.style.borderColor='#2196f3'};"
         "item.onmouseout=()=>{item.style.background='white';item.style.borderColor='#e0e0e0'};"
         "item.onclick=()=>{"
@@ -5410,15 +5410,15 @@ static esp_err_t save_config_handler(httpd_req_t *req)
         if (conn_status == ESP_OK) {
             // Successfully connected
             httpd_resp_sendstr_chunk(req, "<p style='margin:8px 0;color:#2e7d32;font-weight:bold'>✅ Connected Successfully!</p>");
-            snprintf(temp_buf, sizeof(temp_buf), "<p style='margin:5px 0;color:#0277bd'>• Network: %s</p>", ap_info.ssid);
+            snprintf(temp_buf, sizeof(temp_buf), "<p style='margin:5px 0;color:#0277bd'>* Network: %s</p>", ap_info.ssid);
             httpd_resp_sendstr_chunk(req, temp_buf);
-            snprintf(temp_buf, sizeof(temp_buf), "<p style='margin:5px 0;color:#0277bd'>• Signal: %d dBm</p>", ap_info.rssi);
+            snprintf(temp_buf, sizeof(temp_buf), "<p style='margin:5px 0;color:#0277bd'>* Signal: %d dBm</p>", ap_info.rssi);
             httpd_resp_sendstr_chunk(req, temp_buf);
             httpd_resp_sendstr_chunk(req, "<p style='margin:8px 0;color:#0277bd;font-size:14px'>You can now access this interface via your main WiFi network.</p>");
         } else {
             // Connection in progress or failed
             httpd_resp_sendstr_chunk(req, "<p style='margin:8px 0;color:#f57c00'>⏳ Connecting to WiFi network...</p>");
-            snprintf(temp_buf, sizeof(temp_buf), "<p style='margin:5px 0;color:#0277bd'>• Target: %s</p>", g_system_config.wifi_ssid);
+            snprintf(temp_buf, sizeof(temp_buf), "<p style='margin:5px 0;color:#0277bd'>* Target: %s</p>", g_system_config.wifi_ssid);
             httpd_resp_sendstr_chunk(req, temp_buf);
             httpd_resp_sendstr_chunk(req, "<p style='margin:8px 0;color:#0277bd;font-size:14px'><strong>SoftAP Access:</strong> 'ModbusIoT-Config' remains active at 192.168.4.1</p>");
             httpd_resp_sendstr_chunk(req, "<p style='margin:5px 0;color:#666;font-size:13px'>If connection fails, you can still access this interface via the SoftAP.</p>");
@@ -5682,10 +5682,10 @@ static esp_err_t test_sensor_handler(httpd_req_t *req)
                 snprintf(zest_breakdown, sizeof(zest_breakdown),
                          "<br><div class='scada-breakdown'>"
                          "<b>ZEST Calculation Breakdown:</b><br>"
-                         "• Register [0] as UINT16: 0x%04X = %lu (Integer Part)<br>"
-                         "• Register [1]: 0x%04X (Unused)<br>"
-                         "• Registers [2-3] as FLOAT32_ABCD: 0x%04X%04X = %.6f (Decimal Part)<br>"
-                         "• <b>Total = (%.0f + %.6f) × %.3f = %.6f</b> ✅"
+                         "* Register [0] as UINT16: 0x%04X = %lu (Integer Part)<br>"
+                         "* Register [1]: 0x%04X (Unused)<br>"
+                         "* Registers [2-3] as FLOAT32_ABCD: 0x%04X%04X = %.6f (Decimal Part)<br>"
+                         "* <b>Total = (%.0f + %.6f) × %.3f = %.6f</b> ✅"
                          "</div>",
                          registers[0], (unsigned long)integer_part,
                          registers[1],
@@ -7301,7 +7301,7 @@ static esp_err_t test_water_quality_sensor_handler(httpd_req_t *req)
         } else if (processed_value > 2000 && processed_value <= 50000) {
             strcpy(unit, "µS/cm");
         } else if (processed_value >= -10 && processed_value <= 100) {
-            strcpy(unit, "°C");
+            strcpy(unit, "degC");
         } else if (processed_value >= 0 && processed_value <= 1000) {
             strcpy(unit, "NTU");
         } else if (processed_value >= 0 && processed_value <= 20) {

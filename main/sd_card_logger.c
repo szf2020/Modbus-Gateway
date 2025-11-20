@@ -112,9 +112,9 @@ esp_err_t sd_card_init(void) {
         // Provide specific troubleshooting advice based on error
         if (ret == ESP_ERR_TIMEOUT || ret == 0x108) {
             ESP_LOGE(TAG, "");
-            ESP_LOGE(TAG, "╔════════════════════════════════════════════════════════╗");
-            ESP_LOGE(TAG, "║  SD CARD NOT RESPONDING - Check the following:        ║");
-            ESP_LOGE(TAG, "╚════════════════════════════════════════════════════════╝");
+            ESP_LOGE(TAG, "+========================================================+");
+            ESP_LOGE(TAG, "|  SD CARD NOT RESPONDING - Check the following:        |");
+            ESP_LOGE(TAG, "+========================================================+");
             ESP_LOGE(TAG, "");
             ESP_LOGE(TAG, "1. ✓ Is SD card inserted properly?");
             ESP_LOGE(TAG, "2. ✓ Is SD card formatted as FAT32?");
@@ -132,9 +132,9 @@ esp_err_t sd_card_init(void) {
             ESP_LOGE(TAG, "");
         } else if (ret == ESP_ERR_INVALID_CRC || ret == 0x109) {
             ESP_LOGE(TAG, "");
-            ESP_LOGE(TAG, "╔════════════════════════════════════════════════════════╗");
-            ESP_LOGE(TAG, "║  SD CARD CRC ERROR - Data Corruption Detected         ║");
-            ESP_LOGE(TAG, "╚════════════════════════════════════════════════════════╝");
+            ESP_LOGE(TAG, "+========================================================+");
+            ESP_LOGE(TAG, "|  SD CARD CRC ERROR - Data Corruption Detected         |");
+            ESP_LOGE(TAG, "+========================================================+");
             ESP_LOGE(TAG, "");
             ESP_LOGE(TAG, "The SD card is responding but data is corrupted.");
             ESP_LOGE(TAG, "");
@@ -145,10 +145,10 @@ esp_err_t sd_card_init(void) {
             ESP_LOGE(TAG, "  4. ⚠️ Card not fully inserted");
             ESP_LOGE(TAG, "");
             ESP_LOGE(TAG, "Recommended SD cards:");
-            ESP_LOGE(TAG, "  • SanDisk, Samsung, or Kingston brand");
-            ESP_LOGE(TAG, "  • 2GB - 16GB size");
-            ESP_LOGE(TAG, "  • Class 4 or Class 10");
-            ESP_LOGE(TAG, "  • Formatted as FAT32");
+            ESP_LOGE(TAG, "  * SanDisk, Samsung, or Kingston brand");
+            ESP_LOGE(TAG, "  * 2GB - 16GB size");
+            ESP_LOGE(TAG, "  * Class 4 or Class 10");
+            ESP_LOGE(TAG, "  * Formatted as FAT32");
             ESP_LOGE(TAG, "");
             ESP_LOGE(TAG, "💡 System will continue WITHOUT SD card logging");
             ESP_LOGE(TAG, "");
