@@ -109,6 +109,9 @@ static volatile bool webserver_led_on = false;
 static volatile bool mqtt_led_on = false;
 static volatile bool sensor_led_on = false;
 
+// Semaphore for task startup synchronization to prevent log interleaving
+static SemaphoreHandle_t startup_log_mutex = NULL;
+
 // Forward declarations
 static bool send_telemetry(void);
 static void init_modem_reset_gpio(void);
@@ -1287,11 +1290,23 @@ static void update_led_status(void)
 // Modbus reading task (Core 0)
 static void modbus_task(void *pvParameters)
 {
+    // Wait a bit to let the system stabilize before starting
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    // Use mutex to prevent log interleaving during startup
+    if (startup_log_mutex != NULL) {
+        xSemaphoreTake(startup_log_mutex, portMAX_DELAY);
+    }
+
     ESP_LOGI(TAG, "╔══════════════════════════════════════════════════════════╗");
     ESP_LOGI(TAG, "║         🔌 MODBUS READER TASK STARTED 🔌                 ║");
     ESP_LOGI(TAG, "╚══════════════════════════════════════════════════════════╝");
     ESP_LOGI(TAG, "[CONFIG] Modbus task started on core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "[CONFIG] Stack: 8192 bytes | Priority: 5");
+
+    if (startup_log_mutex != NULL) {
+        xSemaphoreGive(startup_log_mutex);
+    }
     
     while (1) {
         if (read_configured_sensors_data() == ESP_OK) {
@@ -1347,11 +1362,23 @@ static void modbus_task(void *pvParameters)
 // MQTT handling task (Core 1)
 static void mqtt_task(void *pvParameters)
 {
+    // Wait a bit to let the system stabilize and avoid log collision
+    vTaskDelay(pdMS_TO_TICKS(200));
+
+    // Use mutex to prevent log interleaving during startup
+    if (startup_log_mutex != NULL) {
+        xSemaphoreTake(startup_log_mutex, portMAX_DELAY);
+    }
+
     ESP_LOGI(TAG, "╔══════════════════════════════════════════════════════════╗");
     ESP_LOGI(TAG, "║           ☁️  MQTT CLIENT TASK STARTED ☁️                 ║");
     ESP_LOGI(TAG, "╚══════════════════════════════════════════════════════════╝");
     ESP_LOGI(TAG, "[NET] MQTT task started on core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "[NET] Stack: 8192 bytes | Priority: 4");
+
+    if (startup_log_mutex != NULL) {
+        xSemaphoreGive(startup_log_mutex);
+    }
     
     // Initialize MQTT client
     if (initialize_mqtt_client() != 0) {
@@ -1385,11 +1412,23 @@ static void mqtt_task(void *pvParameters)
 // Telemetry sending task (Core 1)
 static void telemetry_task(void *pvParameters)
 {
+    // Wait a bit to let the system stabilize and avoid log collision
+    vTaskDelay(pdMS_TO_TICKS(300));
+
+    // Use mutex to prevent log interleaving during startup
+    if (startup_log_mutex != NULL) {
+        xSemaphoreTake(startup_log_mutex, portMAX_DELAY);
+    }
+
     ESP_LOGI(TAG, "╔══════════════════════════════════════════════════════════╗");
     ESP_LOGI(TAG, "║         📊 TELEMETRY SENDER TASK STARTED 📊              ║");
     ESP_LOGI(TAG, "╚══════════════════════════════════════════════════════════╝");
     ESP_LOGI(TAG, "[DATA] Telemetry task started on core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "[DATA] Stack: 8192 bytes | Priority: 3");
+
+    if (startup_log_mutex != NULL) {
+        xSemaphoreGive(startup_log_mutex);
+    }
     
     system_config_t* config = get_system_config();
     TickType_t last_send_time = 0;
@@ -1686,9 +1725,9 @@ static bool send_telemetry(void) {
 
 void app_main(void) {
     ESP_LOGI(TAG, "╔══════════════════════════════════════════════════════════╗");
-    ESP_LOGI(TAG, "║  🚀 MODBUS IoT GATEWAY v1.1.0 - SYSTEM STARTUP 🚀       ║");
+    ESP_LOGI(TAG, "║  🚀 MODBUS IoT GATEWAY v1.1.0 - SYSTEM STARTUP 🚀        ║");
     ESP_LOGI(TAG, "╠══════════════════════════════════════════════════════════╣");
-    ESP_LOGI(TAG, "║  FluxGen Technologies | Industrial IoT Solutions         ║");
+    ESP_LOGI(TAG, "║    FluxGen Technologies | Industrial IoT Solutions       ║");
     ESP_LOGI(TAG, "╚══════════════════════════════════════════════════════════╝");
     ESP_LOGI(TAG, "[START] Starting Unified Modbus IoT Operation System");
 
@@ -1708,7 +1747,7 @@ void app_main(void) {
 
     // Initialize web configuration system
     ESP_LOGI(TAG, "╔══════════════════════════════════════════════════════════╗");
-    ESP_LOGI(TAG, "║         🌐 WEB CONFIGURATION SYSTEM 🌐                   ║");
+    ESP_LOGI(TAG, "║           🌐 WEB CONFIGURATION SYSTEM 🌐                 ║");
     ESP_LOGI(TAG, "╚══════════════════════════════════════════════════════════╝");
     ESP_LOGI(TAG, "[WEB] Initializing web configuration system...");
     ret = web_config_init();
@@ -1767,7 +1806,7 @@ void app_main(void) {
     // Initialize RTC if enabled
     if (config->rtc_config.enabled) {
         ESP_LOGI(TAG, "╔══════════════════════════════════════════════════════════╗");
-        ESP_LOGI(TAG, "║         🕐 DS3231 REAL-TIME CLOCK SETUP 🕐              ║");
+        ESP_LOGI(TAG, "║         🕐 DS3231 REAL-TIME CLOCK SETUP 🕐               ║");
         ESP_LOGI(TAG, "╚══════════════════════════════════════════════════════════╝");
         ESP_LOGI(TAG, "[RTC] 🕐 Initializing DS3231 Real-Time Clock...");
         esp_err_t rtc_ret = ds3231_init();
@@ -1984,11 +2023,17 @@ void app_main(void) {
     vTaskDelay(5000 / portTICK_PERIOD_MS);
 
     ESP_LOGI(TAG, "╔══════════════════════════════════════════════════════════╗");
-    ESP_LOGI(TAG, "║          ⚙️  DUAL-CORE TASK CREATION ⚙️                   ║");
+    ESP_LOGI(TAG, "║          ⚙️  DUAL-CORE TASK CREATION ⚙️                 ║");
     ESP_LOGI(TAG, "╚══════════════════════════════════════════════════════════╝");
     ESP_LOGI(TAG, "[TASK] Core 0: Modbus Reading");
     ESP_LOGI(TAG, "[TASK] Core 1: MQTT & Telemetry");
     ESP_LOGI(TAG, "[START] Starting dual-core task distribution...");
+
+    // Create mutex for synchronized logging during task startup
+    startup_log_mutex = xSemaphoreCreateMutex();
+    if (startup_log_mutex == NULL) {
+        ESP_LOGW(TAG, "[WARN] Failed to create startup log mutex - logs may interleave");
+    }
 
     // Create Modbus task on Core 0 (dedicated for sensor reading)
     BaseType_t modbus_result = xTaskCreatePinnedToCore(
@@ -2044,11 +2089,14 @@ void app_main(void) {
     ESP_LOGI(TAG, "[DATA] Telemetry sending: Core 1 (priority 3)");
     ESP_LOGI(TAG, "[WEB] GPIO %d: Pull LOW to toggle web server ON/OFF", trigger_gpio);
 
+    // Wait for all tasks to display their startup messages
+    vTaskDelay(pdMS_TO_TICKS(500));
+
     // System ready announcement
     ESP_LOGI(TAG, "╔══════════════════════════════════════════════════════════╗");
     ESP_LOGI(TAG, "║        ✅ SYSTEM READY - ENTERING OPERATION MODE ✅      ║");
     ESP_LOGI(TAG, "╠══════════════════════════════════════════════════════════╣");
-    ESP_LOGI(TAG, "║         All subsystems initialized and operational        ║");
+    ESP_LOGI(TAG, "║         All subsystems initialized and operational       ║");
     ESP_LOGI(TAG, "╚══════════════════════════════════════════════════════════╝");
     
     // Main monitoring loop with web server toggle support
@@ -2067,22 +2115,47 @@ void app_main(void) {
         uint32_t current_time_ms = esp_timer_get_time() / 1000;
         
         if (current_time_ms - last_status_log > 30000) {
-            ESP_LOGI(TAG, "[DATA] System Status:");
-            ESP_LOGI(TAG, "   MQTT: %s | Messages: %lu | Sensors: %d", 
-                     mqtt_connected ? "CONNECTED" : "DISCONNECTED", 
-                     telemetry_send_count, config->sensor_count);
-            ESP_LOGI(TAG, "   Web Server: %s | GPIO Trigger: %d", 
-                     web_server_running ? "RUNNING" : "STOPPED", trigger_gpio);
-            ESP_LOGI(TAG, "   LEDs: WebServer=%s | MQTT=%s | Sensors=%s", 
+            char buffer[100];
+
+            ESP_LOGI(TAG, "+----------------------------------------------+");
+            ESP_LOGI(TAG, "|           SYSTEM STATUS MONITOR             |");
+            ESP_LOGI(TAG, "+----------------------------------------------+");
+
+            snprintf(buffer, sizeof(buffer),
+                     "| MQTT: %-15s Messages: %-10lu |",
+                     mqtt_connected ? "CONNECTED" : "OFFLINE",
+                     telemetry_send_count);
+            ESP_LOGI(TAG, "%s", buffer);
+
+            snprintf(buffer, sizeof(buffer),
+                     "| Sensors: %-12d Web: %-14s |",
+                     config->sensor_count,
+                     web_server_running ? "RUNNING" : "STOPPED");
+            ESP_LOGI(TAG, "%s", buffer);
+
+            snprintf(buffer, sizeof(buffer),
+                     "| GPIO: %-15d LEDs: W=%-3s M=%-3s S=%-3s |",
+                     trigger_gpio,
                      webserver_led_on ? "ON" : "OFF",
-                     mqtt_led_on ? "ON" : "OFF", 
+                     mqtt_led_on ? "ON" : "OFF",
                      sensor_led_on ? "ON" : "OFF");
-            ESP_LOGI(TAG, "   Free heap: %lu bytes | Min free: %lu bytes",
-                     esp_get_free_heap_size(), esp_get_minimum_free_heap_size());
-            ESP_LOGI(TAG, "   Tasks running: Modbus=%s, MQTT=%s, Telemetry=%s",
-                     (modbus_task_handle != NULL) ? "OK" : "FAIL",
-                     (mqtt_task_handle != NULL) ? "OK" : "FAIL",
-                     (telemetry_task_handle != NULL) ? "OK" : "FAIL");
+            ESP_LOGI(TAG, "%s", buffer);
+
+            snprintf(buffer, sizeof(buffer),
+                     "| Free Heap: %-10lu Min Free: %-10lu |",
+                     esp_get_free_heap_size(),
+                     esp_get_minimum_free_heap_size());
+            ESP_LOGI(TAG, "%s", buffer);
+
+            snprintf(buffer, sizeof(buffer),
+                     "| Tasks: Modbus=%-3s    MQTT=%-3s   Telem=%-3s |",
+                     (modbus_task_handle != NULL) ? "OK" : "NO",
+                     (mqtt_task_handle != NULL) ? "OK" : "NO",
+                     (telemetry_task_handle != NULL) ? "OK" : "NO");
+            ESP_LOGI(TAG, "%s", buffer);
+
+            ESP_LOGI(TAG, "+----------------------------------------------+");
+
             last_status_log = current_time_ms;
         }
         
