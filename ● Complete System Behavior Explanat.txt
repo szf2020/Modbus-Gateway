@@ -1,0 +1,271 @@
+● Complete System Behavior Explanation
+
+  📋 Initial Setup Mode (First Boot - No Configuration)
+
+  What Happens:
+
+  ┌─────────────────────────────────────────────────────────┐
+  │ 1. ESP32 BOOTS UP                                       │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 2. System checks NVS (flash memory) for configuration  │
+  │    → No configuration found!                            │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 3. System enters SETUP MODE                             │
+  │    Log: "No configuration found, starting in setup mode"│
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 4. Web Server AUTO-STARTS                               │
+  │    - WiFi AP mode activated                             │
+  │    - SSID: "ModbusIoT-Config"                          │
+  │    - Password: "config123"                              │
+  │    - IP: 192.168.4.1                                    │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 5. System displays:                                     │
+  │    ╔════════════════════════════════════════════════╗  │
+  │    ║  🔧 SYSTEM READY - SETUP MODE ACTIVE 🔧        ║  │
+  │    ╠════════════════════════════════════════════════╣  │
+  │    ║  Web server running - please complete config   ║  │
+  │    ╚════════════════════════════════════════════════╝  │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 6. Status Monitor shows:                                │
+  │    | Sensors: 0            Web: RUNNING        |       │
+  │    | GPIO: 34              LEDs: W=ON  M=OFF S=OFF |   │
+  │                                       ↑                 │
+  │                           Web server LED is ON          │
+  └─────────────────────────────────────────────────────────┘
+
+  User Actions in Setup Mode:
+
+  Step 1: Connect to WiFi AP
+  - Connect your phone/laptop to WiFi: ModbusIoT-Config
+  - Password: config123
+
+  Step 2: Open Web Interface
+  - Open browser: http://192.168.4.1
+  - You'll see the Fluxgen configuration interface
+
+  Step 3: Configure Network
+  - WiFi Mode: Enter your WiFi SSID and password
+  - OR SIM Mode: Enter APN details for 4G module
+
+  Step 4: Configure Sensors
+  - Add Modbus sensors (Panda USM, Flow meters, etc.)
+  - Set slave IDs, register addresses, data types
+
+  Step 5: Configure Azure IoT Hub
+  - Enter Device ID (e.g., gateway-01)
+  - Enter Device Key (from Azure portal)
+  - Set telemetry interval (e.g., 60 seconds)
+
+  Step 6: Start Operation
+  - Click "Start Operation Mode" button
+  - System saves all configuration to NVS flash
+  - ESP32 automatically restarts
+
+  ---
+  🚀 Operation Mode (After Configuration Complete)
+
+  What Happens After Restart:
+
+  ┌─────────────────────────────────────────────────────────┐
+  │ 1. ESP32 REBOOTS                                        │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 2. System checks NVS for configuration                 │
+  │    → Configuration found! (config_complete = true)      │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 3. System enters OPERATION MODE                         │
+  │    Log: "Configuration complete, starting in operation  │
+  │          mode"                                          │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 4. Web Server DOES NOT AUTO-START                      │
+  │    - Web server remains OFF                             │
+  │    - No WiFi AP mode                                    │
+  │    - Saves power and resources                          │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 5. Network Connection Starts                            │
+  │    - WiFi Mode: Connects to your WiFi network          │
+  │    - SIM Mode: Establishes PPP connection via 4G        │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 6. MQTT Connection to Azure IoT Hub                    │
+  │    - Connects to Azure using Device ID + Key           │
+  │    - Subscribes to Cloud-to-Device (C2D) messages      │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 7. Modbus Communication Starts                          │
+  │    - Reads sensors every 5 seconds                      │
+  │    - Stores latest values in memory                     │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 8. Telemetry Sending Begins                            │
+  │    - Sends all sensor data to Azure                     │
+  │    - Interval: Every 60 seconds (configurable)          │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 9. System displays:                                     │
+  │    ╔════════════════════════════════════════════════╗  │
+  │    ║  ✅ SYSTEM READY - ENTERING OPERATION MODE ✅  ║  │
+  │    ╠════════════════════════════════════════════════╣  │
+  │    ║  All subsystems initialized and operational    ║  │
+  │    ╚════════════════════════════════════════════════╝  │
+  └─────────────────────────────────────────────────────────┘
+            ↓
+  ┌─────────────────────────────────────────────────────────┐
+  │ 10. Status Monitor shows:                               │
+  │    | MQTT: CONNECTED       Messages: 145      |        │
+  │    | Sensors: 1            Web: STOPPED       |        │
+  │    | GPIO: 34              LEDs: W=OFF M=ON  S=ON |    │
+  │                                       ↑   ↑    ↑        │
+  │                              Web=OFF  │   │    │        │
+  │                              MQTT=ON ─┘   │    │        │
+  │                              Sensor=ON ───┘    │        │
+  └─────────────────────────────────────────────────────────┘
+
+  ---
+  🔧 How to Access Web Server in Operation Mode
+
+  Even in operation mode, you can temporarily enable the web server for configuration changes:
+
+  Method 1: GPIO Pin Trigger (Hardware Button)
+
+  Default GPIO: Pin 34
+
+  1. Pull GPIO 34 LOW (press button connected to pin 34)
+  2. Web server toggles ON
+  3. System starts WiFi AP: "ModbusIoT-Config"
+  4. Access http://192.168.4.1 to make changes
+  5. Press button again to toggle OFF
+
+  Logs you'll see:
+  I (45678) AZURE_IOT: [WEB] GPIO 34 trigger detected - starting web server
+  I (45800) WEB_CONFIG: Starting web configuration server...
+  I (45900) WEB_CONFIG: SoftAP started: SSID='ModbusIoT-Config'
+  I (46000) AZURE_IOT: [WEB] Web server started successfully with SoftAP
+
+  Status changes:
+  | Sensors: 1            Web: RUNNING       |
+  | GPIO: 34              LEDs: W=ON  M=ON  S=ON |
+
+  Method 2: Cloud-to-Device Command (Remote)
+
+  From Azure Portal:
+  {
+    "command": "toggle_webserver"
+  }
+
+  From Azure CLI:
+  az iot device c2d-message send \
+    --hub-name fluxgen-modbus-hub \
+    --device-id gateway-01 \
+    --data '{"command":"toggle_webserver"}'
+
+  Logs you'll see:
+  I (12345) AZURE_IOT: [MSG] CLOUD-TO-DEVICE MESSAGE RECEIVED:
+  I (12346) AZURE_IOT: [C2D] Processing command: {"command":"toggle_webserver"}
+  I (12347) AZURE_IOT: [C2D] Command: toggle_webserver
+  I (12348) AZURE_IOT: [C2D] Toggling web server
+  I (12500) WEB_CONFIG: Starting web configuration server...
+
+  ---
+  📊 Comparison Table
+
+  | Feature         | SETUP MODE                  | OPERATION MODE                     |
+  |-----------------|-----------------------------|------------------------------------|
+  | When Active     | First boot (no config)      | After configuration saved          |
+  | Web Server      | ✅ AUTO-STARTS               | ❌ Stays OFF (manual trigger only)  |
+  | WiFi AP         | ✅ Active (ModbusIoT-Config) | ❌ Not active                       |
+  | WiFi STA        | ❌ Not connected             | ✅ Connects to your network         |
+  | Modbus Reading  | ✅ Active (can test sensors) | ✅ Active (continuous)              |
+  | MQTT/Azure      | ❌ Not active                | ✅ Active (sends telemetry)         |
+  | LED: Web (W)    | 🟢 ON                       | 🔴 OFF                             |
+  | LED: MQTT (M)   | 🔴 OFF                      | 🟢 ON (when connected)             |
+  | LED: Sensor (S) | 🟡 Varies                   | 🟢 ON (when responding)            |
+  | Access URL      | http://192.168.4.1          | None (unless manually triggered)   |
+  | Main Purpose    | Initial configuration       | Normal operation + data collection |
+
+  ---
+  🔄 Complete Lifecycle Example
+
+  Day 1: Initial Deployment
+
+  1. Flash ESP32 → SETUP MODE
+  2. Connect to AP, configure everything
+  3. Click "Start Operation" → Restart
+  4. OPERATION MODE begins
+  5. System runs 24/7, sending data to Azure
+
+  Day 30: Need to Add New Sensor
+
+  Option A: Physical Access
+  1. Press button on GPIO 34
+  2. Web server starts (AP mode)
+  3. Connect to "ModbusIoT-Config"
+  4. Add new sensor via web interface
+  5. Press button again to turn off web server
+  6. System continues operation with new sensor
+
+  Option B: Remote Access (No Physical Access)
+  1. Send C2D command: {"command":"toggle_webserver"}
+  2. Web server starts (AP mode)
+  3. Ask someone on-site to connect to "ModbusIoT-Config"
+  4. Make changes via web interface
+  5. Send C2D command again to turn off
+     OR press hardware button
+
+  Option C: Fully Remote (Via C2D Command)
+  1. Send C2D command with sensor configuration:
+  {
+    "command": "add_sensor",
+    "sensor": {
+      "name": "New Flow Meter",
+      "slave_id": 2,
+      "register_address": 8,
+      ...
+    }
+  }
+  2. No web server needed!
+  3. System adds sensor and continues operation
+
+  ---
+  🎯 Key Takeaways
+
+  1. SETUP MODE = Configuration Phase
+    - Web server ON by default
+    - No Azure connection
+    - You configure everything
+  2. OPERATION MODE = Production Phase
+    - Web server OFF by default
+    - Azure connection active
+    - Sensors read continuously
+    - Data sent to cloud
+  3. Web Server in Operation Mode
+    - Only starts when YOU trigger it (GPIO or C2D command)
+    - Saves power and resources
+    - Can be toggled ON/OFF anytime
+  4. The Fix I Made
+    - Changed the log message to show the CORRECT mode
+    - No more confusion about whether you're in setup or operation
+    - Clear indication when web server should/shouldn't be running
+
+  Now when you see the logs, you'll know exactly what mode the system is in and whether the web server behavior is correct!

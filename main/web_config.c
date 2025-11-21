@@ -6412,17 +6412,31 @@ static esp_err_t edit_sensor_handler(httpd_req_t *req)
 // Start operation mode
 static esp_err_t start_operation_handler(httpd_req_t *req)
 {
+    ESP_LOGI(TAG, "[START_OP] User clicked 'Start Operation' button");
+    ESP_LOGI(TAG, "[START_OP] Setting config_complete = TRUE");
+
     g_system_config.config_complete = true;
-    config_save_to_nvs(&g_system_config);
-    
+
+    ESP_LOGI(TAG, "[START_OP] Saving configuration to NVS...");
+    esp_err_t save_result = config_save_to_nvs(&g_system_config);
+
+    if (save_result == ESP_OK) {
+        ESP_LOGI(TAG, "[START_OP] ✅ Configuration saved successfully to NVS");
+    } else {
+        ESP_LOGE(TAG, "[START_OP] ❌ FAILED to save configuration: %s", esp_err_to_name(save_result));
+    }
+
     const char* response = "{\"status\":\"success\",\"message\":\"Switching to operation mode\"}";
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, response, strlen(response));
-    
+
+    ESP_LOGI(TAG, "[START_OP] System will restart in 2 seconds...");
+    ESP_LOGI(TAG, "[START_OP] After restart, system should enter OPERATION MODE");
+
     // Restart in 2 seconds
     vTaskDelay(pdMS_TO_TICKS(2000));
     esp_restart();
-    
+
     return ESP_OK;
 }
 
@@ -8494,7 +8508,12 @@ esp_err_t web_config_init(void)
 {
     // Load configuration from NVS
     config_load_from_nvs(&g_system_config);
-    
+
+    // Debug: Show config_complete flag value
+    ESP_LOGI(TAG, "[DEBUG] config_complete flag = %s", g_system_config.config_complete ? "TRUE" : "FALSE");
+    ESP_LOGI(TAG, "[DEBUG] sensor_count = %d", g_system_config.sensor_count);
+    ESP_LOGI(TAG, "[DEBUG] wifi_ssid = '%s'", g_system_config.wifi_ssid);
+
     // Check if configuration is complete
     if (g_system_config.config_complete) {
         g_config_state = CONFIG_STATE_OPERATION;

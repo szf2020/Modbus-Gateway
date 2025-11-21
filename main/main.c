@@ -2243,11 +2243,17 @@ void app_main(void) {
     // Wait for all tasks to display their startup messages
     vTaskDelay(pdMS_TO_TICKS(500));
 
-    // System ready announcement
+    // System ready announcement - display correct mode
     ESP_LOGI(TAG, "╔══════════════════════════════════════════════════════════╗");
-    ESP_LOGI(TAG, "║        ✅ SYSTEM READY - ENTERING OPERATION MODE ✅      ║");
-    ESP_LOGI(TAG, "╠══════════════════════════════════════════════════════════╣");
-    ESP_LOGI(TAG, "║         All subsystems initialized and operational       ║");
+    if (get_config_state() == CONFIG_STATE_SETUP) {
+        ESP_LOGI(TAG, "║          🔧 SYSTEM READY - SETUP MODE ACTIVE 🔧         ║");
+        ESP_LOGI(TAG, "╠══════════════════════════════════════════════════════════╣");
+        ESP_LOGI(TAG, "║    Web server running - please complete configuration   ║");
+    } else {
+        ESP_LOGI(TAG, "║        ✅ SYSTEM READY - ENTERING OPERATION MODE ✅      ║");
+        ESP_LOGI(TAG, "╠══════════════════════════════════════════════════════════╣");
+        ESP_LOGI(TAG, "║         All subsystems initialized and operational       ║");
+    }
     ESP_LOGI(TAG, "╚══════════════════════════════════════════════════════════╝");
     
     // Main monitoring loop with web server toggle support
