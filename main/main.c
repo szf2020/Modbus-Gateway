@@ -499,8 +499,18 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
                     ESP_LOGI(TAG, "[C2D] Processing command: %s", message);
 
+                    // Find JSON start - Azure may add timestamp prefix like "11/21/2025, 3:08:57 PM - {"
+                    char *json_start = strchr(message, '{');
+                    if (json_start == NULL) {
+                        ESP_LOGW(TAG, "[C2D] No JSON object found in message");
+                        free(message);
+                        break;
+                    }
+
+                    ESP_LOGI(TAG, "[C2D] JSON payload: %s", json_start);
+
                     // Parse JSON command
-                    cJSON *root = cJSON_Parse(message);
+                    cJSON *root = cJSON_Parse(json_start);
                     if (root) {
                         cJSON *command = cJSON_GetObjectItem(root, "command");
 
