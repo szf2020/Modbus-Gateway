@@ -32,6 +32,7 @@
 #include "sd_card_logger.h"
 #include "ds3231_rtc.h"
 #include "a7670c_ppp.h"
+#include "cJSON.h"
 
 static const char *TAG = "AZURE_IOT";
 
@@ -520,7 +521,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                                     if (new_interval >= 30 && new_interval <= 3600) {
                                         system_config_t *cfg = get_system_config();
                                         cfg->telemetry_interval = new_interval;
-                                        save_system_config();
+                                        config_save_to_nvs(cfg);
                                         ESP_LOGI(TAG, "[C2D] Telemetry interval updated to %d seconds", new_interval);
                                     } else {
                                         ESP_LOGW(TAG, "[C2D] Invalid interval: %d (must be 30-3600)", new_interval);
@@ -571,7 +572,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                                         cfg->sensors[idx].enabled = true;
                                         strncpy(cfg->sensors[idx].register_type, "HOLDING", 15);
                                         cfg->sensor_count++;
-                                        save_system_config();
+                                        config_save_to_nvs(cfg);
 
                                         ESP_LOGI(TAG, "[C2D] Sensor added: %s (total: %d)", cfg->sensors[idx].name, cfg->sensor_count);
                                     }
@@ -598,7 +599,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                                             if ((item = cJSON_GetObjectItem(updates, "baud_rate")))
                                                 cfg->sensors[idx].baud_rate = item->valueint;
 
-                                            save_system_config();
+                                            config_save_to_nvs(cfg);
                                             ESP_LOGI(TAG, "[C2D] Sensor %d updated: %s", idx, cfg->sensors[idx].name);
                                         }
                                     } else {
@@ -618,7 +619,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                                             memcpy(&cfg->sensors[i], &cfg->sensors[i + 1], sizeof(sensor_config_t));
                                         }
                                         cfg->sensor_count--;
-                                        save_system_config();
+                                        config_save_to_nvs(cfg);
                                         ESP_LOGI(TAG, "[C2D] Sensor %d deleted (remaining: %d)", idx, cfg->sensor_count);
                                     } else {
                                         ESP_LOGW(TAG, "[C2D] Invalid sensor index: %d", idx);
