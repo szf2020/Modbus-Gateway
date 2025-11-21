@@ -113,11 +113,90 @@ static volatile bool sensor_led_on = false;
 // Semaphore for task startup synchronization to prevent log interleaving
 static SemaphoreHandle_t startup_log_mutex = NULL;
 
+// Telemetry history buffer for web interface
+#define TELEMETRY_HISTORY_SIZE 25
+typedef struct {
+    char timestamp[32];
+    char payload[400];  // Truncated version for display
+    bool success;
+} telemetry_record_t;
+
+static telemetry_record_t telemetry_history[TELEMETRY_HISTORY_SIZE];
+static int telemetry_history_index = 0;
+static int telemetry_history_count = 0;
+static SemaphoreHandle_t telemetry_history_mutex = NULL;
+
 // Forward declarations
 static bool send_telemetry(void);
 static void init_modem_reset_gpio(void);
 static void perform_modem_reset(void);
 static void modem_reset_task(void *pvParameters);
+
+// Function to add telemetry to history buffer
+static void add_telemetry_to_history(const char *payload, bool success) {
+    if (telemetry_history_mutex == NULL) return;
+
+    if (xSemaphoreTake(telemetry_history_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        // Get current timestamp in 24-hour format
+        time_t now = time(NULL);
+        struct tm timeinfo;
+        localtime_r(&now, &timeinfo);  // Use local time instead of UTC
+        strftime(telemetry_history[telemetry_history_index].timestamp,
+                 sizeof(telemetry_history[telemetry_history_index].timestamp),
+                 "%d-%m-%Y %H:%M:%S", &timeinfo);  // DD-MM-YYYY HH:MM:SS (24-hour)
+
+        // Copy payload (truncate if needed)
+        strncpy(telemetry_history[telemetry_history_index].payload, payload,
+                sizeof(telemetry_history[telemetry_history_index].payload) - 1);
+        telemetry_history[telemetry_history_index].payload[sizeof(telemetry_history[telemetry_history_index].payload) - 1] = '\0';
+
+        // Set success flag
+        telemetry_history[telemetry_history_index].success = success;
+
+        // Update circular buffer indices
+        telemetry_history_index = (telemetry_history_index + 1) % TELEMETRY_HISTORY_SIZE;
+        if (telemetry_history_count < TELEMETRY_HISTORY_SIZE) {
+            telemetry_history_count++;
+        }
+
+        xSemaphoreGive(telemetry_history_mutex);
+    }
+}
+
+// Function to get telemetry history as JSON (called from web_config.c)
+int get_telemetry_history_json(char *buffer, size_t buffer_size) {
+    if (telemetry_history_mutex == NULL || buffer == NULL || buffer_size < 100) {
+        return 0;
+    }
+
+    int written = 0;
+    written += snprintf(buffer + written, buffer_size - written, "[");
+
+    if (xSemaphoreTake(telemetry_history_mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+        int count = 0;
+        // Read in reverse order (newest first)
+        for (int i = telemetry_history_count - 1; i >= 0; i--) {
+            int actual_index = (telemetry_history_index - 1 - (telemetry_history_count - 1 - i) + TELEMETRY_HISTORY_SIZE) % TELEMETRY_HISTORY_SIZE;
+
+            if (count > 0) {
+                written += snprintf(buffer + written, buffer_size - written, ",");
+            }
+
+            written += snprintf(buffer + written, buffer_size - written,
+                "{\"timestamp\":\"%s\",\"payload\":%s,\"success\":%s}",
+                telemetry_history[actual_index].timestamp,
+                telemetry_history[actual_index].payload,
+                telemetry_history[actual_index].success ? "true" : "false");
+
+            count++;
+            if (written >= buffer_size - 100) break; // Leave room for closing bracket
+        }
+        xSemaphoreGive(telemetry_history_mutex);
+    }
+
+    written += snprintf(buffer + written, buffer_size - written, "]");
+    return written;
+}
 static esp_err_t reinit_modem_reset_gpio(int new_gpio_pin);
 static void start_web_server(void);
 static void stop_web_server(void);
@@ -236,6 +315,12 @@ extern const uint8_t azure_root_ca_pem_end[] asm("_binary_azure_ca_cert_pem_end"
 
 static void initialize_time(void) {
     ESP_LOGI(TAG, "Initializing SNTP");
+
+    // Set timezone to IST (Indian Standard Time) - UTC+5:30
+    setenv("TZ", "IST-5:30", 1);
+    tzset();
+    ESP_LOGI(TAG, "Timezone set to IST (UTC+5:30)");
+
     esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
     esp_sntp_setservername(0, "pool.ntp.org");
     esp_sntp_init();
@@ -1866,6 +1951,9 @@ static bool send_telemetry(void) {
         ESP_LOGI(TAG, "   Message ID: %d", msg_id);
         ESP_LOGI(TAG, "   Payload: %.200s%s", telemetry_payload, strlen(telemetry_payload) > 200 ? "..." : "");
 
+        // Store in telemetry history for web interface
+        add_telemetry_to_history(telemetry_payload, true);
+
         // After successful send, try to replay any cached messages from SD card
         if (config->sd_config.enabled) {
             ESP_LOGI(TAG, "[SD] 📤 Checking for cached messages to replay...");
@@ -2194,6 +2282,12 @@ void app_main(void) {
     startup_log_mutex = xSemaphoreCreateMutex();
     if (startup_log_mutex == NULL) {
         ESP_LOGW(TAG, "[WARN] Failed to create startup log mutex - logs may interleave");
+    }
+
+    // Create mutex for telemetry history buffer
+    telemetry_history_mutex = xSemaphoreCreateMutex();
+    if (telemetry_history_mutex == NULL) {
+        ESP_LOGW(TAG, "[WARN] Failed to create telemetry history mutex");
     }
 
     // Create Modbus task on Core 0 (dedicated for sensor reading)

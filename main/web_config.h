@@ -161,4 +161,7 @@ esp_err_t update_modem_gpio_pin(int new_gpio_pin);
 // WiFi network connection
 esp_err_t connect_to_wifi_network(void);
 
+// Telemetry history (for web interface display)
+int get_telemetry_history_json(char *buffer, size_t buffer_size);
+
 #endif // WEB_CONFIG_H

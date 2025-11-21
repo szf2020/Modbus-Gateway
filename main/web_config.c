@@ -507,8 +507,10 @@ static const char* html_header =
 "var menuItems=document.querySelectorAll('.menu-item');"
 "sections.forEach(function(s){s.classList.remove('active');});"
 "menuItems.forEach(function(m){m.classList.remove('active');});"
+"stopTelemetryAutoRefresh();"
 "document.getElementById(sectionId).classList.add('active');"
 "var activeBtn=document.querySelector('[onclick*=\"'+sectionId+'\"]'); if(activeBtn) activeBtn.classList.add('active');"
+"if(sectionId==='telemetry'){startTelemetryAutoRefresh();}"
 "}"
 "function showAzureSection(){"
 "const password=prompt('Azure IoT Configuration Access\\n\\nPlease enter the admin password to access Azure IoT Hub settings:');"
@@ -733,6 +735,9 @@ static const char* html_header =
 "</button>"
 "<button class='menu-item' onclick='showAzureSection()'>"
 "<i class='menu-icon'>☁</i>AZURE IOT HUB"
+"</button>"
+"<button class='menu-item' onclick='showSection(\"telemetry\")'>"
+"<i class='menu-icon'>📊</i>TELEMETRY MONITOR"
 "</button>"
 "<button class='menu-item' onclick='showSection(\"sensors\")'>"
 "<i class='menu-icon'>💾</i>MODBUS SENSORS"
@@ -1248,6 +1253,7 @@ static esp_err_t api_rtc_sync_handler(httpd_req_t *req);
 static esp_err_t api_rtc_set_handler(httpd_req_t *req);
 static esp_err_t api_modbus_status_handler(httpd_req_t *req);
 static esp_err_t api_azure_status_handler(httpd_req_t *req);
+static esp_err_t api_telemetry_history_handler(httpd_req_t *req);
 static esp_err_t modbus_scan_handler(httpd_req_t *req);
 static esp_err_t modbus_read_live_handler(httpd_req_t *req);
 
@@ -2380,7 +2386,41 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "</div>",
         g_system_config.telemetry_interval);
     httpd_resp_sendstr_chunk(req, chunk);
-    
+
+    // Telemetry Monitor section
+    snprintf(chunk, sizeof(chunk),
+        "<div id='telemetry' class='section'>"
+        "<h2 class='section-title'><i>📊</i>Azure Telemetry Monitor</h2>"
+        "<div style='background:#e3f2fd;border:1px solid #90caf9;padding:15px;margin:10px 0;border-radius:6px'>"
+        "<p style='margin:0;color:#1565c0'><strong>ℹ️ Live Telemetry Stream:</strong> View real-time data being sent to Azure IoT Hub. Last 25 messages shown (newest first). Auto-refreshes every 5 seconds.</p>"
+        "</div>"
+        "<div class='sensor-card' style='padding:20px'>"
+        "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:15px'>"
+        "<h3 style='margin:0;color:#007bff'>Recent Telemetry Messages</h3>"
+        "<button onclick='refreshTelemetryNow()' style='padding:8px 15px;background:#28a745;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:600'>🔄 Refresh Now</button>"
+        "</div>"
+        "<div id='telemetry-status' style='text-align:center;padding:10px;background:#f8f9fa;border-radius:4px;margin-bottom:15px;color:#666;font-size:14px'>"
+        "Loading telemetry data..."
+        "</div>"
+        "<div style='overflow-x:auto'>"
+        "<table style='width:100%%;border-collapse:collapse;font-size:13px'>"
+        "<thead>"
+        "<tr style='background:#007bff;color:white'>"
+        "<th style='padding:12px;text-align:left;border:1px solid #dee2e6'>#</th>"
+        "<th style='padding:12px;text-align:left;border:1px solid #dee2e6'>Date & Time (24h)</th>"
+        "<th style='padding:12px;text-align:left;border:1px solid #dee2e6'>Status</th>"
+        "<th style='padding:12px;text-align:left;border:1px solid #dee2e6;min-width:400px'>Payload (JSON)</th>"
+        "</tr>"
+        "</thead>"
+        "<tbody id='telemetry-table-body'>"
+        "<tr><td colspan='4' style='text-align:center;padding:20px;color:#888'>No data yet...</td></tr>"
+        "</tbody>"
+        "</table>"
+        "</div>"
+        "</div>"
+        "</div>");
+    httpd_resp_sendstr_chunk(req, chunk);
+
     // Sensors section with sub-menus
     int regular_sensor_count = 0;
     int water_quality_sensor_count = 0;
@@ -3376,6 +3416,56 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "const input=document.getElementById('azure_device_key');"
         "const toggle=event.target;"
         "if(input.type==='password'){input.type='text';toggle.textContent='HIDE';}else{input.type='password';toggle.textContent='SHOW';}"
+        "}"
+        "let telemetryRefreshInterval=null;"
+        "function updateTelemetryDisplay(){"
+        "fetch('/api/telemetry/history').then(r=>r.json()).then(data=>{"
+        "const tbody=document.getElementById('telemetry-table-body');"
+        "const status=document.getElementById('telemetry-status');"
+        "if(data.length===0){"
+        "tbody.innerHTML='<tr><td colspan=\"4\" style=\"text-align:center;padding:20px;color:#888\">No telemetry data yet. Waiting for first send...</td></tr>';"
+        "status.textContent='No messages yet';"
+        "status.style.background='#fff3cd';"
+        "status.style.color='#856404';"
+        "}else{"
+        "let html='';"
+        "data.forEach((item,idx)=>{"
+        "const statusColor=item.success?'#28a745':'#dc3545';"
+        "const statusText=item.success?'✅ Sent':'❌ Failed';"
+        "const payloadStr=JSON.stringify(item.payload,null,2);"
+        "html+=`<tr style=\"border-bottom:1px solid #dee2e6\">`;"
+        "html+=`<td style=\"padding:8px;border:1px solid #dee2e6;font-weight:600\">${idx+1}</td>`;"
+        "html+=`<td style=\"padding:8px;border:1px solid #dee2e6\">${item.timestamp}</td>`;"
+        "html+=`<td style=\"padding:8px;border:1px solid #dee2e6;color:${statusColor};font-weight:600\">${statusText}</td>`;"
+        "html+=`<td style=\"padding:8px;border:1px solid #dee2e6\"><pre style=\"margin:0;font-size:11px;white-space:pre-wrap;word-wrap:break-word\">${payloadStr}</pre></td>`;"
+        "html+='</tr>';"
+        "});"
+        "tbody.innerHTML=html;"
+        "const now=new Date().toLocaleTimeString();"
+        "status.textContent=`Last updated: ${now} | Total messages: ${data.length}/25`;"
+        "status.style.background='#d4edda';"
+        "status.style.color='#155724';"
+        "}"
+        "}).catch(err=>{"
+        "console.error('Telemetry fetch error:',err);"
+        "document.getElementById('telemetry-status').textContent='⚠️ Error loading telemetry data';"
+        "document.getElementById('telemetry-status').style.background='#f8d7da';"
+        "document.getElementById('telemetry-status').style.color='#721c24';"
+        "});"
+        "}"
+        "function refreshTelemetryNow(){"
+        "updateTelemetryDisplay();"
+        "}"
+        "function startTelemetryAutoRefresh(){"
+        "if(telemetryRefreshInterval)clearInterval(telemetryRefreshInterval);"
+        "updateTelemetryDisplay();"
+        "telemetryRefreshInterval=setInterval(updateTelemetryDisplay,5000);"
+        "}"
+        "function stopTelemetryAutoRefresh(){"
+        "if(telemetryRefreshInterval){"
+        "clearInterval(telemetryRefreshInterval);"
+        "telemetryRefreshInterval=null;"
+        "}"
         "}"
         "function toggleNetworkMode(){"
         "const wifiMode=document.getElementById('mode_wifi').checked;"
@@ -8483,6 +8573,15 @@ static esp_err_t start_webserver(void)
         };
         httpd_register_uri_handler(g_server, &api_azure_status_uri);
 
+        // Azure telemetry history API endpoint
+        httpd_uri_t api_telemetry_history_uri = {
+            .uri = "/api/telemetry/history",
+            .method = HTTP_GET,
+            .handler = api_telemetry_history_handler,
+            .user_ctx = NULL
+        };
+        httpd_register_uri_handler(g_server, &api_telemetry_history_uri);
+
         // Modbus Explorer: Device Scanner endpoint
         httpd_uri_t modbus_scan_uri = {
             .uri = "/modbus_scan",
@@ -9207,6 +9306,32 @@ static esp_err_t api_azure_status_handler(httpd_req_t *req) {
     );
 
     httpd_resp_sendstr(req, json_response);
+    return ESP_OK;
+}
+
+// Azure telemetry history handler (for web interface)
+static esp_err_t api_telemetry_history_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "application/json");
+
+    // Allocate buffer for telemetry history JSON (25 messages * ~450 bytes each)
+    char *history_buffer = (char *)malloc(12000);
+    if (history_buffer == NULL) {
+        const char* error_response = "{\"error\":\"Out of memory\"}";
+        httpd_resp_sendstr(req, error_response);
+        return ESP_OK;
+    }
+
+    // Get telemetry history from main.c
+    int written = get_telemetry_history_json(history_buffer, 12000);
+
+    if (written > 0) {
+        httpd_resp_sendstr(req, history_buffer);
+    } else {
+        const char* empty_response = "[]";
+        httpd_resp_sendstr(req, empty_response);
+    }
+
+    free(history_buffer);
     return ESP_OK;
 }
 
