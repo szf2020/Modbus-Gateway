@@ -540,6 +540,91 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                                     web_config_stop();
                                 }
                             }
+                            else if (strcmp(cmd, "add_sensor") == 0) {
+                                system_config_t *cfg = get_system_config();
+                                if (cfg->sensor_count < 20) {
+                                    cJSON *sensor = cJSON_GetObjectItem(root, "sensor");
+                                    if (sensor) {
+                                        int idx = cfg->sensor_count;
+
+                                        // Parse sensor configuration from JSON
+                                        cJSON *item;
+                                        if ((item = cJSON_GetObjectItem(sensor, "name")))
+                                            strncpy(cfg->sensors[idx].name, item->valuestring, 31);
+                                        if ((item = cJSON_GetObjectItem(sensor, "unit_id")))
+                                            strncpy(cfg->sensors[idx].unit_id, item->valuestring, 15);
+                                        if ((item = cJSON_GetObjectItem(sensor, "slave_id")))
+                                            cfg->sensors[idx].slave_id = item->valueint;
+                                        if ((item = cJSON_GetObjectItem(sensor, "register_address")))
+                                            cfg->sensors[idx].register_address = item->valueint;
+                                        if ((item = cJSON_GetObjectItem(sensor, "quantity")))
+                                            cfg->sensors[idx].quantity = item->valueint;
+                                        if ((item = cJSON_GetObjectItem(sensor, "data_type")))
+                                            strncpy(cfg->sensors[idx].data_type, item->valuestring, 31);
+                                        if ((item = cJSON_GetObjectItem(sensor, "sensor_type")))
+                                            strncpy(cfg->sensors[idx].sensor_type, item->valuestring, 15);
+                                        if ((item = cJSON_GetObjectItem(sensor, "scale_factor")))
+                                            cfg->sensors[idx].scale_factor = (float)item->valuedouble;
+                                        if ((item = cJSON_GetObjectItem(sensor, "baud_rate")))
+                                            cfg->sensors[idx].baud_rate = item->valueint;
+
+                                        cfg->sensors[idx].enabled = true;
+                                        strncpy(cfg->sensors[idx].register_type, "HOLDING", 15);
+                                        cfg->sensor_count++;
+                                        save_system_config();
+
+                                        ESP_LOGI(TAG, "[C2D] Sensor added: %s (total: %d)", cfg->sensors[idx].name, cfg->sensor_count);
+                                    }
+                                } else {
+                                    ESP_LOGW(TAG, "[C2D] Cannot add sensor - limit reached (20 max)");
+                                }
+                            }
+                            else if (strcmp(cmd, "update_sensor") == 0) {
+                                cJSON *sensor_idx = cJSON_GetObjectItem(root, "index");
+                                if (sensor_idx && cJSON_IsNumber(sensor_idx)) {
+                                    int idx = sensor_idx->valueint;
+                                    system_config_t *cfg = get_system_config();
+
+                                    if (idx >= 0 && idx < cfg->sensor_count) {
+                                        cJSON *updates = cJSON_GetObjectItem(root, "updates");
+                                        if (updates) {
+                                            cJSON *item;
+                                            if ((item = cJSON_GetObjectItem(updates, "enabled")))
+                                                cfg->sensors[idx].enabled = cJSON_IsTrue(item);
+                                            if ((item = cJSON_GetObjectItem(updates, "name")))
+                                                strncpy(cfg->sensors[idx].name, item->valuestring, 31);
+                                            if ((item = cJSON_GetObjectItem(updates, "scale_factor")))
+                                                cfg->sensors[idx].scale_factor = (float)item->valuedouble;
+                                            if ((item = cJSON_GetObjectItem(updates, "baud_rate")))
+                                                cfg->sensors[idx].baud_rate = item->valueint;
+
+                                            save_system_config();
+                                            ESP_LOGI(TAG, "[C2D] Sensor %d updated: %s", idx, cfg->sensors[idx].name);
+                                        }
+                                    } else {
+                                        ESP_LOGW(TAG, "[C2D] Invalid sensor index: %d", idx);
+                                    }
+                                }
+                            }
+                            else if (strcmp(cmd, "delete_sensor") == 0) {
+                                cJSON *sensor_idx = cJSON_GetObjectItem(root, "index");
+                                if (sensor_idx && cJSON_IsNumber(sensor_idx)) {
+                                    int idx = sensor_idx->valueint;
+                                    system_config_t *cfg = get_system_config();
+
+                                    if (idx >= 0 && idx < cfg->sensor_count) {
+                                        // Shift all sensors after this one
+                                        for (int i = idx; i < cfg->sensor_count - 1; i++) {
+                                            memcpy(&cfg->sensors[i], &cfg->sensors[i + 1], sizeof(sensor_config_t));
+                                        }
+                                        cfg->sensor_count--;
+                                        save_system_config();
+                                        ESP_LOGI(TAG, "[C2D] Sensor %d deleted (remaining: %d)", idx, cfg->sensor_count);
+                                    } else {
+                                        ESP_LOGW(TAG, "[C2D] Invalid sensor index: %d", idx);
+                                    }
+                                }
+                            }
                             else {
                                 ESP_LOGW(TAG, "[C2D] Unknown command: %s", cmd);
                             }
