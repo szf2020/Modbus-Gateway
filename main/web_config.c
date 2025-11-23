@@ -9181,30 +9181,45 @@ static esp_err_t api_telegram_test_handler(httpd_req_t *req) {
         return ESP_OK;
     }
 
-    // Try to send a test message via Telegram API
-    ESP_LOGI(TAG, "Testing Telegram bot with token: %s..., chat_id: %s", bot_token, chat_id);
+    // Send test message via Telegram API
+    ESP_LOGI(TAG, "Testing Telegram bot, chat_id: %s", chat_id);
 
-    // Build simple test message
-    const char *test_msg = "🧪%20Test%20Message%0A%0AYour%20Telegram%20bot%20is%20working%20correctly!%20🎉";
+    // Build URL with just the method
+    char url[256];
+    snprintf(url, sizeof(url), "https://api.telegram.org/bot%s/sendMessage", bot_token);
 
-    char url[512];
-    snprintf(url, sizeof(url),
-        "https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s",
-        bot_token,
-        chat_id,
-        test_msg);
+    // Build POST data
+    char post_data[256];
+    snprintf(post_data, sizeof(post_data),
+        "chat_id=%s&text=Test%%20from%%20ESP32%%20Gateway%%20-%20Bot%%20is%%20working!",
+        chat_id);
 
-    // Simple HTTP GET test
+    ESP_LOGI(TAG, "POST to: %s", url);
+
     esp_http_client_config_t config = {
         .url = url,
+        .method = HTTP_METHOD_POST,
         .timeout_ms = 10000,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (client == NULL) {
+        ESP_LOGE(TAG, "Failed to initialize HTTP client");
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"❌ Failed to initialize HTTP client\"}");
+        return ESP_OK;
+    }
+
+    // Set headers and POST data
+    esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
+    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+
+    // Perform request
     esp_err_t err = esp_http_client_perform(client);
 
     if (err == ESP_OK) {
         int status = esp_http_client_get_status_code(client);
+        ESP_LOGI(TAG, "HTTP Status: %d", status);
+
         if (status == 200) {
             httpd_resp_sendstr(req, "{\"status\":\"success\",\"message\":\"✅ Test message sent successfully! Check your Telegram.\"}");
         } else if (status == 401) {
@@ -9213,10 +9228,11 @@ static esp_err_t api_telegram_test_handler(httpd_req_t *req) {
             httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"❌ Invalid chat ID. Make sure it's correct.\"}");
         } else {
             char resp[128];
-            snprintf(resp, sizeof(resp), "{\"status\":\"error\",\"message\":\"❌ HTTP Error %d - Check bot token and chat ID\"}", status);
+            snprintf(resp, sizeof(resp), "{\"status\":\"error\",\"message\":\"❌ HTTP Error %d\"}", status);
             httpd_resp_sendstr(req, resp);
         }
     } else {
+        ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
         httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"❌ Network error - Check internet connection\"}");
     }
 
