@@ -2800,6 +2800,62 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "<button onclick='toggleAutoRefresh()' id='auto_refresh_btn' class='btn' style='background:var(--color-primary);color:white;flex:1'>Enable Auto-Refresh</button>"
         "</div>"
         "<div id='live_result' style='margin-top:var(--space-md)'></div>"
+        "</div>");
+
+    // Live Sensor Poll Card - show configured sensors
+    httpd_resp_sendstr_chunk(req,
+        ""
+        "<div class='sensor-card'>"
+        "<h3>📊 Live Sensor Poll</h3>"
+        "<p>Monitor real-time values from your configured sensors. Click 'Start Polling' to see live data updates every 3 seconds.</p>");
+
+    if (g_system_config.sensor_count > 0) {
+        bool has_sensors = false;
+        for (int i = 0; i < g_system_config.sensor_count; i++) {
+            if (g_system_config.sensors[i].enabled) {
+                has_sensors = true;
+                snprintf(chunk, sizeof(chunk),
+                    "<div style='border:1px solid #dee2e6;padding:12px;margin:10px 0;border-radius:5px;background:#f8f9fa'>"
+                    "<div style='display:flex;justify-content:space-between;align-items:center'>"
+                    "<div style='flex:1'>"
+                    "<strong style='color:#28a745'>%s</strong>"
+                    "<span style='color:#6c757d;font-size:13px;margin-left:10px'>(%s | Slave: %d)</span>"
+                    "</div>"
+                    "<button onclick='startLivePoll(%d)' class='btn' style='background:#28a745;color:white;padding:6px 16px;font-size:13px'>Start</button>"
+                    "</div>"
+                    "<div id='live-poll-%d' style='display:none;margin-top:10px;padding:10px;background:white;border-radius:4px'>"
+                    "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>"
+                    "<span style='font-weight:bold;color:#28a745;font-size:13px'>● Polling Active</span>"
+                    "<button onclick='stopLivePoll(%d)' style='background:#dc3545;color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px'>Stop</button>"
+                    "</div>"
+                    "<div id='live-poll-data-%d' style='font-family:monospace;font-size:12px;max-height:200px;overflow-y:auto'>"
+                    "</div>"
+                    "<div id='live-poll-status-%d' style='margin-top:8px;font-size:11px;color:#6c757d;border-top:1px solid #dee2e6;padding-top:8px'>"
+                    "Ready to poll"
+                    "</div>"
+                    "</div>"
+                    "</div>",
+                    g_system_config.sensors[i].name,
+                    g_system_config.sensors[i].sensor_type,
+                    g_system_config.sensors[i].slave_id,
+                    i, i, i, i, i);
+                httpd_resp_sendstr_chunk(req, chunk);
+            }
+        }
+        if (!has_sensors) {
+            httpd_resp_sendstr_chunk(req,
+                "<div style='background:#fff3cd;border:1px solid #ffc107;padding:12px;margin:10px 0;border-radius:5px'>"
+                "<p style='margin:0;color:#856404;font-size:13px'>All sensors are disabled. Enable sensors to use live polling.</p>"
+                "</div>");
+        }
+    } else {
+        httpd_resp_sendstr_chunk(req,
+            "<div style='background:#fff3cd;border:1px solid #ffc107;padding:12px;margin:10px 0;border-radius:5px'>"
+            "<p style='margin:0;color:#856404;font-size:13px'>No sensors configured. Add sensors in the Regular Sensors or Water Quality Sensors sections first.</p>"
+            "</div>");
+    }
+
+    httpd_resp_sendstr_chunk(req,
         "</div>"
         ""
         "<div class='sensor-card'>"
@@ -5053,23 +5109,23 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "function showSensorSubMenu(menuType) {"
         "const regularSensors = document.getElementById('regular-sensors-list');"
         "const waterQualitySensors = document.getElementById('water-quality-sensors-list');"
+        "const modbusExplorer = document.getElementById('modbus-explorer-list');"
         "const btnRegular = document.getElementById('btn-regular-sensors');"
         "const btnWaterQuality = document.getElementById('btn-water-quality-sensors');"
-        "const modbusExplorer = document.getElementById('modbus-explorer-list');"
         "const btnModbusExplorer = document.getElementById('btn-modbus-explorer');"
         "if (menuType === 'regular') {"
         "regularSensors.style.display = 'block';"
         "waterQualitySensors.style.display = 'none';"
+        "modbusExplorer.style.display = 'none';"
         "btnRegular.style.background = '#007bff';"
         "btnWaterQuality.style.background = '#6c757d';"
-        "modbusExplorer.style.display = 'none';"
         "btnModbusExplorer.style.background = '#6c757d';"
         "} else if (menuType === 'water_quality') {"
         "regularSensors.style.display = 'none';"
         "waterQualitySensors.style.display = 'block';"
+        "modbusExplorer.style.display = 'none';"
         "btnRegular.style.background = '#6c757d';"
         "btnWaterQuality.style.background = '#17a2b8';"
-        "modbusExplorer.style.display = 'none';"
         "btnModbusExplorer.style.background = '#6c757d';"
         "} else if (menuType === 'explorer') {"
         "regularSensors.style.display = 'none';"
@@ -5176,6 +5232,44 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "btn.textContent='Disable Auto-Refresh';"
         "btn.style.background='var(--color-error)';"
         "}}"
+        "let livePollIntervals={};"
+        "function startLivePoll(sensorIndex){"
+        "const pollDiv=document.getElementById('live-poll-'+sensorIndex);"
+        "const dataDiv=document.getElementById('live-poll-data-'+sensorIndex);"
+        "const statusDiv=document.getElementById('live-poll-status-'+sensorIndex);"
+        "pollDiv.style.display='block';"
+        "dataDiv.innerHTML='<p style=\"color:#6c757d\">Starting poll...</p>';"
+        "const pollFunc=()=>{"
+        "fetch('/api/sensor_data?index='+sensorIndex)"
+        ".then(r=>r.json())"
+        ".then(data=>{"
+        "if(data.status==='success'){"
+        "let html='<table style=\"width:100%;border-collapse:collapse\">';"
+        "for(let key in data.values){"
+        "html+='<tr style=\"border-bottom:1px solid #dee2e6\"><td style=\"padding:4px;font-weight:bold\">'+key+'</td><td style=\"padding:4px;text-align:right\">'+data.values[key]+'</td></tr>';"
+        "}"
+        "html+='</table>';"
+        "dataDiv.innerHTML=html;"
+        "const now=new Date();"
+        "statusDiv.innerHTML='Last update: '+now.toLocaleTimeString();"
+        "}else{"
+        "dataDiv.innerHTML='<p style=\"color:#dc3545\">Error: '+data.message+'</p>';"
+        "}"
+        "}).catch(err=>{"
+        "dataDiv.innerHTML='<p style=\"color:#dc3545\">Network error: '+err.message+'</p>';"
+        "});"
+        "};"
+        "pollFunc();"
+        "livePollIntervals[sensorIndex]=setInterval(pollFunc,3000);"
+        "}"
+        "function stopLivePoll(sensorIndex){"
+        "if(livePollIntervals[sensorIndex]){"
+        "clearInterval(livePollIntervals[sensorIndex]);"
+        "delete livePollIntervals[sensorIndex];"
+        "}"
+        "const pollDiv=document.getElementById('live-poll-'+sensorIndex);"
+        "pollDiv.style.display='none';"
+        "}"
         "console.log('Script loaded successfully. addSensor function defined:', typeof addSensor);"
         "</script>");
     
@@ -8634,6 +8728,15 @@ static esp_err_t start_webserver(void)
         };
         httpd_register_uri_handler(g_server, &api_telegram_test_uri);
 
+        // Live sensor poll API endpoint
+        httpd_uri_t api_sensor_data_uri = {
+            .uri = "/api/sensor_data",
+            .method = HTTP_GET,
+            .handler = api_sensor_data_handler,
+            .user_ctx = NULL
+        };
+        httpd_register_uri_handler(g_server, &api_sensor_data_uri);
+
         // SIM test API endpoint
         httpd_uri_t api_sim_test_uri = {
             .uri = "/api/sim_test",
@@ -9236,6 +9339,75 @@ static esp_err_t api_telegram_test_handler(httpd_req_t *req) {
     }
 
     esp_http_client_cleanup(client);
+    return ESP_OK;
+}
+
+// Handler: /api/sensor_data - Get current sensor readings for live poll
+static esp_err_t api_sensor_data_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "application/json");
+
+    // Parse sensor index from query parameter
+    char query[64];
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) != ESP_OK) {
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Missing sensor index\"}");
+        return ESP_OK;
+    }
+
+    char index_str[8];
+    if (httpd_query_key_value(query, "index", index_str, sizeof(index_str)) != ESP_OK) {
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Invalid index parameter\"}");
+        return ESP_OK;
+    }
+
+    int sensor_index = atoi(index_str);
+    if (sensor_index < 0 || sensor_index >= g_system_config.sensor_count) {
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Sensor index out of range\"}");
+        return ESP_OK;
+    }
+
+    sensor_config_t *sensor = &g_system_config.sensors[sensor_index];
+    if (!sensor->enabled) {
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Sensor is disabled\"}");
+        return ESP_OK;
+    }
+
+    // Read current sensor values from Modbus
+    uint16_t registers[10];
+    int num_regs = sensor->num_registers > 10 ? 10 : sensor->num_registers;
+
+    esp_err_t err = modbus_read_holding_registers(
+        sensor->slave_id,
+        sensor->start_register,
+        num_regs,
+        registers
+    );
+
+    if (err != ESP_OK) {
+        char resp[128];
+        snprintf(resp, sizeof(resp), "{\"status\":\"error\",\"message\":\"Failed to read sensor (Slave %d)\"}",
+                 sensor->slave_id);
+        httpd_resp_sendstr(req, resp);
+        return ESP_OK;
+    }
+
+    // Build JSON response with sensor values
+    char response[1024];
+    int offset = snprintf(response, sizeof(response),
+        "{\"status\":\"success\",\"sensor\":\"%s\",\"type\":\"%s\",\"slave_id\":%d,\"values\":{",
+        sensor->name, sensor->sensor_type, sensor->slave_id);
+
+    // Add register values
+    for (int i = 0; i < num_regs && offset < sizeof(response) - 100; i++) {
+        offset += snprintf(response + offset, sizeof(response) - offset,
+            "%s\"Reg %d\":%u",
+            i > 0 ? "," : "",
+            sensor->start_register + i,
+            registers[i]);
+    }
+
+    offset += snprintf(response + offset, sizeof(response) - offset, "}}");
+
+    httpd_resp_sendstr(req, response);
     return ESP_OK;
 }
 
