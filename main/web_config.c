@@ -3591,11 +3591,16 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "}"
         "function testTelegramBot(){"
         "const result=document.getElementById('telegram_test_result');"
+        "const botToken=document.getElementById('telegram_bot_token').value;"
+        "const chatId=document.getElementById('telegram_chat_id').value;"
+        "const formData=new FormData();"
+        "formData.append('bot_token',botToken);"
+        "formData.append('chat_id',chatId);"
         "result.innerHTML='🧪 Testing Telegram bot...';"
         "result.style.display='block';"
         "result.style.backgroundColor='#fff3cd';"
         "result.style.color='#856404';"
-        "fetch('/api/telegram_test',{method:'POST'})"
+        "fetch('/api/telegram_test',{method:'POST',body:formData})"
         ".then(r=>r.json())"
         ".then(data=>{"
         "if(data.status==='success'){"
@@ -9118,32 +9123,65 @@ static esp_err_t save_telegram_config_handler(httpd_req_t *req) {
 static esp_err_t api_telegram_test_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
 
-    if (!g_system_config.telegram_config.enabled) {
-        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Telegram bot is disabled\"}");
+    // Read POST data to get bot token and chat ID from form (not from saved config)
+    char buf[512];
+    int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
+    if (ret <= 0) {
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Failed to read request data\"}");
+        return ESP_OK;
+    }
+    buf[ret] = '\0';
+
+    // Parse bot token from form
+    char bot_token[64] = {0};
+    char chat_id[32] = {0};
+    char *param;
+
+    if ((param = strstr(buf, "bot_token=")) != NULL) {
+        param += strlen("bot_token=");
+        char *end = strchr(param, '&');
+        int len = end ? (end - param) : strlen(param);
+        if (len > 0 && len < sizeof(bot_token)) {
+            strncpy(bot_token, param, len);
+            bot_token[len] = '\0';
+            // URL decode
+            char decoded[64];
+            url_decode(decoded, bot_token);
+            strncpy(bot_token, decoded, sizeof(bot_token) - 1);
+        }
+    }
+
+    if ((param = strstr(buf, "chat_id=")) != NULL) {
+        param += strlen("chat_id=");
+        char *end = strchr(param, '&');
+        int len = end ? (end - param) : strlen(param);
+        if (len > 0 && len < sizeof(chat_id)) {
+            strncpy(chat_id, param, len);
+            chat_id[len] = '\0';
+        }
+    }
+
+    if (strlen(bot_token) == 0) {
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Bot token is empty. Please enter a bot token first.\"}");
         return ESP_OK;
     }
 
-    if (strlen(g_system_config.telegram_config.bot_token) == 0) {
-        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Bot token not configured\"}");
-        return ESP_OK;
-    }
-
-    if (strlen(g_system_config.telegram_config.chat_id) == 0) {
-        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Chat ID not configured\"}");
+    if (strlen(chat_id) == 0) {
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Chat ID is empty. Please enter your chat ID first.\"}");
         return ESP_OK;
     }
 
     // Try to send a test message via Telegram API
-    ESP_LOGI(TAG, "Testing Telegram bot...");
+    ESP_LOGI(TAG, "Testing Telegram bot with token: %s..., chat_id: %s", bot_token, chat_id);
 
     // Build simple test message
-    const char *test_msg = "🧪 Test Message\\n\\nYour Telegram bot is working correctly! 🎉";
+    const char *test_msg = "🧪%20Test%20Message%0A%0AYour%20Telegram%20bot%20is%20working%20correctly!%20🎉";
 
     char url[512];
     snprintf(url, sizeof(url),
         "https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s",
-        g_system_config.telegram_config.bot_token,
-        g_system_config.telegram_config.chat_id,
+        bot_token,
+        chat_id,
         test_msg);
 
     // Simple HTTP GET test
@@ -9158,14 +9196,18 @@ static esp_err_t api_telegram_test_handler(httpd_req_t *req) {
     if (err == ESP_OK) {
         int status = esp_http_client_get_status_code(client);
         if (status == 200) {
-            httpd_resp_sendstr(req, "{\"status\":\"success\",\"message\":\"Test message sent successfully! Check your Telegram.\"}");
+            httpd_resp_sendstr(req, "{\"status\":\"success\",\"message\":\"✅ Test message sent successfully! Check your Telegram.\"}");
+        } else if (status == 401) {
+            httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"❌ Invalid bot token. Check your token from @BotFather.\"}");
+        } else if (status == 400) {
+            httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"❌ Invalid chat ID. Make sure it's correct.\"}");
         } else {
             char resp[128];
-            snprintf(resp, sizeof(resp), "{\"status\":\"error\",\"message\":\"HTTP Error %d - Check bot token and chat ID\"}", status);
+            snprintf(resp, sizeof(resp), "{\"status\":\"error\",\"message\":\"❌ HTTP Error %d - Check bot token and chat ID\"}", status);
             httpd_resp_sendstr(req, resp);
         }
     } else {
-        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"Network error - Check internet connection\"}");
+        httpd_resp_sendstr(req, "{\"status\":\"error\",\"message\":\"❌ Network error - Check internet connection\"}");
     }
 
     esp_http_client_cleanup(client);
