@@ -106,90 +106,83 @@ esp_err_t create_json_payload(const json_params_t* params, char* json_buffer, si
     
     switch (params->type) {
         case JSON_TYPE_FLOW: {
-            // {"consumption":1234,"created_on":"2023-12-10T12:58:57Z","unit_id":"TFG2235F","signal_strength":-65,"network_type":"WiFi","network_quality":"Good"}
+            // {"body":{"unit_id":"FG24708F","type":"FLOW","consumption":"265.23","created_on":"2025-11-24T12:05:05Z"}}
             snprintf(json_buffer, buffer_size,
                 "{"
-                "\"consumption\":%.2f,"
-                "\"created_on\":\"%s\","
+                "\"body\":{"
                 "\"unit_id\":\"%s\","
-                "\"signal_strength\":%d,"
-                "\"network_type\":\"%s\","
-                "\"network_quality\":\"%s\""
+                "\"type\":\"FLOW\","
+                "\"consumption\":\"%.2f\","
+                "\"created_on\":\"%s\""
+                "}"
                 "}",
-                params->scaled_value,
-                params->timestamp,
                 params->unit_id,
-                params->signal_strength,
-                params->network_type,
-                params->network_quality);
+                params->scaled_value,
+                params->timestamp);
             break;
         }
         
         case JSON_TYPE_LEVEL: {
-            // {"level_filled":50,"created_on":"2023-12-10T12:58:57Z","unit_id":"TFG2235L","signal_strength":-65,"network_type":"WiFi","network_quality":"Good"}
+            // {"body":{"unit_id":"FG24769L","created_on":"2025-11-24T12:04:16Z","type":"LEVEL","level_filled":49}}
             snprintf(json_buffer, buffer_size,
                 "{"
-                "\"level_filled\":%.2f,"
-                "\"created_on\":\"%s\","
+                "\"body\":{"
                 "\"unit_id\":\"%s\","
-                "\"signal_strength\":%d,"
-                "\"network_type\":\"%s\","
-                "\"network_quality\":\"%s\""
+                "\"created_on\":\"%s\","
+                "\"type\":\"LEVEL\","
+                "\"level_filled\":%.0f"
+                "}"
                 "}",
-                params->scaled_value,
-                params->timestamp,
                 params->unit_id,
-                params->signal_strength,
-                params->network_type,
-                params->network_quality);
+                params->timestamp,
+                params->scaled_value);
             break;
         }
         
         case JSON_TYPE_RAINGAUGE: {
-            // {"raingauge":1234,"created_on":"2023-12-10T12:58:57Z","unit_id":"TFG2235F","signal_strength":-65,"network_type":"WiFi","network_quality":"Good"}
+            // {"body":{"unit_id":"FG24769R","created_on":"2025-11-24T12:04:16Z","type":"RAINGAUGE","raingauge":"123.45"}}
             snprintf(json_buffer, buffer_size,
                 "{"
-                "\"raingauge\":%.2f,"
-                "\"created_on\":\"%s\","
+                "\"body\":{"
                 "\"unit_id\":\"%s\","
-                "\"signal_strength\":%d,"
-                "\"network_type\":\"%s\","
-                "\"network_quality\":\"%s\""
+                "\"created_on\":\"%s\","
+                "\"type\":\"RAINGAUGE\","
+                "\"raingauge\":\"%.2f\""
+                "}"
                 "}",
-                params->scaled_value,
-                params->timestamp,
                 params->unit_id,
-                params->signal_strength,
-                params->network_type,
-                params->network_quality);
+                params->timestamp,
+                params->scaled_value);
             break;
         }
         
         case JSON_TYPE_BOREWELL: {
-            // {"borewell":1234,"created_on":"2023-12-10T12:58:57Z","unit_id":"TFG2235L","signal_strength":-65,"network_type":"WiFi","network_quality":"Good"}
+            // {"body":{"borewell":24.196835,"type":"BOREWELL","created_on_epoch":1763986189,"slave_id":1,"meter":"piezo"}}
+            uint32_t epoch_time;
+            format_timestamp_epoch(&epoch_time);
+
             snprintf(json_buffer, buffer_size,
                 "{"
-                "\"borewell\":%.2f,"
-                "\"created_on\":\"%s\","
-                "\"unit_id\":\"%s\","
-                "\"signal_strength\":%d,"
-                "\"network_type\":\"%s\","
-                "\"network_quality\":\"%s\""
+                "\"body\":{"
+                "\"borewell\":%.6f,"
+                "\"type\":\"BOREWELL\","
+                "\"created_on_epoch\":%" PRIu32 ","
+                "\"slave_id\":%d,"
+                "\"meter\":\"%s\""
+                "}"
                 "}",
                 params->scaled_value,
-                params->timestamp,
-                params->unit_id,
-                params->signal_strength,
-                params->network_type,
-                params->network_quality);
+                epoch_time,
+                params->slave_id,
+                strlen(params->extra_params.meter_id) > 0 ? params->extra_params.meter_id : "piezo");
             break;
         }
         
         case JSON_TYPE_ENERGY: {
-            // {"ene_con_hex":"00004351","type":"ENERGY","created_on_epoch":1702213256,"slave_id":1,"meter":"abcdlong"}
+            // {"body":{"ene_con_hex":"00004351","type":"ENERGY","created_on_epoch":1702213256,"slave_id":1,"meter":"abcdlong"}}
             uint32_t epoch_time;
             format_timestamp_epoch(&epoch_time);
-            
+
             // Use hex string from Test RS485 if available, otherwise format raw value
             char hex_value[32];
             if (strlen(params->extra_params.hex_string) > 0) {
@@ -207,30 +200,26 @@ esp_err_t create_json_payload(const json_params_t* params, char* json_buffer, si
                 // Fallback: format raw value as hex string
                 snprintf(hex_value, sizeof(hex_value), "%08" PRIX32, params->raw_value);
             }
-            
+
             snprintf(json_buffer, buffer_size,
                 "{"
+                "\"body\":{"
                 "\"ene_con_hex\":\"%s\","
                 "\"type\":\"ENERGY\","
                 "\"created_on_epoch\":%" PRIu32 ","
                 "\"slave_id\":%d,"
-                "\"meter\":\"%s\","
-                "\"signal_strength\":%d,"
-                "\"network_type\":\"%s\","
-                "\"network_quality\":\"%s\""
+                "\"meter\":\"%s\""
+                "}"
                 "}",
                 hex_value,
                 epoch_time,
                 params->slave_id,
-                strlen(params->extra_params.meter_id) > 0 ? params->extra_params.meter_id : params->unit_id,
-                params->signal_strength,
-                params->network_type,
-                params->network_quality);
+                strlen(params->extra_params.meter_id) > 0 ? params->extra_params.meter_id : params->unit_id);
             break;
         }
         
         case JSON_TYPE_QUALITY: {
-            // {"params_data":{"pH":7,"TDS":100,"Temp":32,"HUMIDITY":65,"TSS":15,"BOD":8,"COD":12},"type":"QUALITY","created_on":"2023-12-10T12:58:57Z","unit_id":"TFG2235Q"}
+            // {"body":{"params_data":{"pH":7,"TDS":100,"Temp":32,"HUMIDITY":65,"TSS":15,"BOD":8,"COD":12},"type":"QUALITY","created_on":"2023-12-10T12:58:57Z","unit_id":"TFG2235Q"}}
             double ph_value = (params->extra_params.ph_value > 0) ? params->extra_params.ph_value : params->scaled_value;
             double tds_value = (params->extra_params.tds_value > 0) ? params->extra_params.tds_value : (params->scaled_value * 10);
             double temp_value = (params->extra_params.temp_value > 0) ? params->extra_params.temp_value : 25.0; // Default temp
@@ -238,9 +227,10 @@ esp_err_t create_json_payload(const json_params_t* params, char* json_buffer, si
             double tss_value = (params->extra_params.tss_value > 0) ? params->extra_params.tss_value : 10.0; // Default TSS
             double bod_value = (params->extra_params.bod_value > 0) ? params->extra_params.bod_value : 5.0; // Default BOD
             double cod_value = (params->extra_params.cod_value > 0) ? params->extra_params.cod_value : 8.0; // Default COD
-            
+
             snprintf(json_buffer, buffer_size,
                 "{"
+                "\"body\":{"
                 "\"params_data\":{"
                 "\"pH\":%.2f,"
                 "\"TDS\":%.2f,"
@@ -252,10 +242,8 @@ esp_err_t create_json_payload(const json_params_t* params, char* json_buffer, si
                 "},"
                 "\"type\":\"QUALITY\","
                 "\"created_on\":\"%s\","
-                "\"unit_id\":\"%s\","
-                "\"signal_strength\":%d,"
-                "\"network_type\":\"%s\","
-                "\"network_quality\":\"%s\""
+                "\"unit_id\":\"%s\""
+                "}"
                 "}",
                 ph_value,
                 tds_value,
@@ -265,10 +253,7 @@ esp_err_t create_json_payload(const json_params_t* params, char* json_buffer, si
                 bod_value,
                 cod_value,
                 params->timestamp,
-                params->unit_id,
-                params->signal_strength,
-                params->network_type,
-                params->network_quality);
+                params->unit_id);
             break;
         }
         
