@@ -229,11 +229,10 @@ static esp_err_t init_modem_for_ppp(void) {
     // Disable echo
     send_at_command("ATE0", "OK", 1000);
 
-    // Configure modem for LTE/4G data connection
-    ESP_LOGI(TAG, "📡 Configuring modem for data connection...");
-    send_at_command("AT+CNMP=38", "OK", 2000);  // Set to LTE only mode (38 = LTE)
-    send_at_command("AT+CMNB=1", "OK", 2000);   // Set to CAT-M preferred mode
-    vTaskDelay(pdMS_TO_TICKS(2000));            // Give modem time to reconfigure
+    // Configure modem for automatic mode selection (2G/3G/4G)
+    ESP_LOGI(TAG, "📡 Configuring modem for automatic network selection...");
+    send_at_command("AT+CNMP=2", "OK", 2000);   // Set to automatic mode (2 = Auto)
+    vTaskDelay(pdMS_TO_TICKS(1000));            // Give modem time to reconfigure
 
     // Check SIM with retries (SIM needs time to initialize)
     ESP_LOGI(TAG, "📱 Checking SIM card...");
