@@ -168,10 +168,15 @@ uint16_t modbus_calculate_crc(const uint8_t* data, size_t length)
 bool modbus_verify_crc(const uint8_t* data, size_t length)
 {
     if (length < 3) return false;
-    
+
     uint16_t calculated_crc = modbus_calculate_crc(data, length - 2);
     uint16_t received_crc = (data[length - 1] << 8) | data[length - 2];
-    
+
+    if (calculated_crc != received_crc) {
+        ESP_LOGW(TAG, "[CRC] Calculated: 0x%04X, Received: 0x%04X (bytes: %02X %02X)",
+                 calculated_crc, received_crc, data[length - 2], data[length - 1]);
+    }
+
     return calculated_crc == received_crc;
 }
 
