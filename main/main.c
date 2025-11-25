@@ -2366,14 +2366,14 @@ void app_main(void) {
     }
     ESP_LOGI(TAG, "╚══════════════════════════════════════════════════════════╝");
 
-    // Initialize and start Telegram bot if enabled
-    telegram_bot_init();
-    if (telegram_is_enabled()) {
-        ESP_LOGI(TAG, "[TELEGRAM] Starting Telegram bot...");
-        telegram_bot_start();
-    } else {
-        ESP_LOGI(TAG, "[TELEGRAM] Telegram bot disabled in configuration");
-    }
+    // DISABLED: Telegram bot feature (not compiled)
+    // telegram_bot_init();
+    // if (telegram_is_enabled()) {
+    //     ESP_LOGI(TAG, "[TELEGRAM] Starting Telegram bot...");
+    //     telegram_bot_start();
+    // } else {
+    //     ESP_LOGI(TAG, "[TELEGRAM] Telegram bot disabled in configuration");
+    // }
 
     // Main monitoring loop with web server toggle support
     while (1) {
