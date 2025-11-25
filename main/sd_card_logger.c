@@ -507,6 +507,18 @@ esp_err_t sd_card_replay_messages(void (*publish_callback)(const pending_message
             continue;
         }
 
+        // Validate timestamp - skip messages from 1970 (invalid RTC time)
+        if (strncmp(timestamp, "1970-", 5) == 0) {
+            ESP_LOGW(TAG, "⏭️ Skipping message ID %s - invalid timestamp from 1970 (RTC was not set)", id_str);
+            continue;
+        }
+
+        // Validate topic - skip messages with placeholder device IDs
+        if (strstr(topic, "your-device-id") != NULL) {
+            ESP_LOGW(TAG, "⏭️ Skipping message ID %s - invalid topic with placeholder device ID", id_str);
+            continue;
+        }
+
         pending_message_t msg;
         msg.message_id = atoi(id_str);
         strncpy(msg.timestamp, timestamp, sizeof(msg.timestamp) - 1);
