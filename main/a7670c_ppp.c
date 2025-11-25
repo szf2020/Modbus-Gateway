@@ -97,6 +97,11 @@ static esp_err_t send_at_command(const char* cmd, const char* expected, int time
     }
 
     ESP_LOGE(TAG, "Timeout waiting for: %s", expected ? expected : "response");
+    if (total_len > 0) {
+        ESP_LOGW(TAG, "Actual response received: %s", response);
+    } else {
+        ESP_LOGW(TAG, "No response received from modem");
+    }
     return ESP_ERR_TIMEOUT;
 }
 
@@ -249,8 +254,10 @@ static esp_err_t init_modem_for_ppp(void) {
     ESP_LOGI(TAG, "📶 Waiting for network...");
     int retries = 30;
     while (retries-- > 0) {
-        if (send_at_command("AT+CREG?", "+CREG: 0,1", 2000) == ESP_OK ||
-            send_at_command("AT+CREG?", "+CREG: 0,5", 2000) == ESP_OK) {
+        // Check for registered status (,1 = registered home network, ,5 = registered roaming)
+        // Format can be "+CREG: 0,1", "+CREG: 1,1", "+CREG: 2,1", etc.
+        if (send_at_command("AT+CREG?", ",1", 2000) == ESP_OK ||
+            send_at_command("AT+CREG?", ",5", 2000) == ESP_OK) {
             ESP_LOGI(TAG, "✓ Network registered!");
             break;
         }
@@ -258,7 +265,10 @@ static esp_err_t init_modem_for_ppp(void) {
     }
 
     if (retries <= 0) {
-        ESP_LOGE(TAG, "Network registration timeout");
+        ESP_LOGE(TAG, "Network registration timeout - Check:");
+        ESP_LOGE(TAG, "  1. Antenna is connected properly");
+        ESP_LOGE(TAG, "  2. SIM card has active service");
+        ESP_LOGE(TAG, "  3. Signal strength in your area");
         return ESP_ERR_TIMEOUT;
     }
 
