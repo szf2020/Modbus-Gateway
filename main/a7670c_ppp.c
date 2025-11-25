@@ -581,18 +581,51 @@ static esp_err_t exit_ppp_mode(void) {
 esp_err_t a7670c_ppp_disconnect(void) {
     ESP_LOGI(TAG, "Disconnecting PPP...");
 
-    // First, exit PPP mode on the modem
+    // CRITICAL: Stop UART RX task FIRST to prevent feeding data to PPP after disconnect
+    if (uart_rx_task_handle != NULL) {
+        ESP_LOGI(TAG, "Stopping UART RX task before PPP disconnect...");
+        uart_rx_task_running = false;
+
+        // Wait for task to stop (up to 1 second)
+        int wait_count = 0;
+        while (uart_rx_task_handle != NULL && wait_count < 10) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+            wait_count++;
+        }
+
+        if (uart_rx_task_handle != NULL) {
+            ESP_LOGW(TAG, "UART RX task did not stop, forcing delete");
+            vTaskDelete(uart_rx_task_handle);
+            uart_rx_task_handle = NULL;
+        }
+    }
+
+    // Exit PPP mode on the modem
     exit_ppp_mode();
 
-    // Then destroy the PPP interface
+    // Stop and destroy the PPP interface
     if (ppp_netif != NULL) {
+        ESP_LOGI(TAG, "Stopping PPP netif...");
         esp_netif_action_stop(ppp_netif, NULL, 0, NULL);
+
+        // CRITICAL: Wait for LWIP timers to expire before destroying netif
+        // This prevents crash from fsm_timeout trying to write to destroyed interface
+        // PPP FSM timeout is typically 3 seconds, so wait at least 4 seconds
+        ESP_LOGI(TAG, "Waiting for LWIP timers to settle (4 seconds)...");
+        vTaskDelay(pdMS_TO_TICKS(4000));
+
+        ESP_LOGI(TAG, "Destroying PPP netif...");
         esp_netif_destroy(ppp_netif);
         ppp_netif = NULL;
+
+        // Extra delay after destroy to ensure cleanup completes
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 
     ppp_connected = false;
-    xEventGroupClearBits(ppp_event_group, PPP_CONNECTED_BIT);
+    if (ppp_event_group != NULL) {
+        xEventGroupClearBits(ppp_event_group, PPP_CONNECTED_BIT);
+    }
 
     ESP_LOGI(TAG, "PPP disconnected");
     return ESP_OK;
@@ -602,30 +635,27 @@ esp_err_t a7670c_ppp_disconnect(void) {
 esp_err_t a7670c_ppp_deinit(void) {
     ESP_LOGI(TAG, "Deinitializing A7670C PPP...");
 
-    // Disconnect PPP if still connected
-    if (ppp_connected) {
+    // Disconnect PPP if still connected (this also stops UART RX task)
+    if (ppp_connected || ppp_netif != NULL) {
         a7670c_ppp_disconnect();
     }
 
-    // Stop UART RX task BEFORE deleting UART driver
+    // Double-check UART RX task is stopped (in case disconnect wasn't called)
     if (uart_rx_task_handle != NULL) {
         ESP_LOGI(TAG, "Stopping UART RX task...");
-        uart_rx_task_running = false;  // Signal task to exit
+        uart_rx_task_running = false;
 
-        // Wait up to 2 seconds for task to finish
         int wait_count = 0;
-        while (uart_rx_task_handle != NULL && wait_count < 20) {
+        while (uart_rx_task_handle != NULL && wait_count < 10) {
             vTaskDelay(pdMS_TO_TICKS(100));
             wait_count++;
         }
 
         if (uart_rx_task_handle != NULL) {
-            ESP_LOGW(TAG, "UART RX task did not stop gracefully, deleting forcefully");
             vTaskDelete(uart_rx_task_handle);
             uart_rx_task_handle = NULL;
-        } else {
-            ESP_LOGI(TAG, "UART RX task stopped successfully");
         }
+        ESP_LOGI(TAG, "UART RX task stopped");
     }
 
     // Delete event group

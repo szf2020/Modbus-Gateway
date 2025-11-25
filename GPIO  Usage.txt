@@ -1,0 +1,21 @@
+  | GPIO | Usage                                             |
+  |------|---------------------------------------------------|
+  | 0    | Boot button (input)                               |
+  | 2    | Modem reset                                       |
+  | 4    | SIM power                                         |
+  | 5    | SD Card CS ← Problem pin                          |
+  | 12   | SD Card MISO (boot strapping - can cause issues!) |
+  | 13   | SD Card MOSI                                      |
+  | 14   | SD Card CLK                                       |
+  | 15   | SIM reset (boot strapping pin!)                   |
+  | 16   | Modbus RX                                         |
+  | 17   | Modbus TX                                         |
+  | 18   | RS485 RTS                                         |
+  | 21   | RTC I2C SDA                                       |
+  | 22   | RTC I2C SCL                                       |
+  | 25   | Web server LED                                    |
+  | 26   | MQTT LED                                          |
+  | 27   | Sensor LED                                        |
+  | 32   | SIM UART RX                                       |
+  | 33   | SIM UART TX                                       |
+  | 34   | Config button (input only)                        |

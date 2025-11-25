@@ -5536,7 +5536,10 @@ static esp_err_t save_azure_config_handler(httpd_req_t *req)
             url_decode(decoded_value, param + 17);
             strncpy(g_system_config.azure_device_key, decoded_value, sizeof(g_system_config.azure_device_key) - 1);
             g_system_config.azure_device_key[sizeof(g_system_config.azure_device_key) - 1] = '\0';
-            ESP_LOGI(TAG, "Azure device key updated");
+            ESP_LOGI(TAG, "Azure device key updated (len=%d, first4=%.4s, last4=%.4s)",
+                     (int)strlen(g_system_config.azure_device_key),
+                     g_system_config.azure_device_key,
+                     g_system_config.azure_device_key + strlen(g_system_config.azure_device_key) - 4);
         } else if (strncmp(param, "telemetry_interval=", 19) == 0) {
             g_system_config.telemetry_interval = atoi(param + 19);
             ESP_LOGI(TAG, "Telemetry interval: %d", g_system_config.telemetry_interval);
@@ -9556,13 +9559,17 @@ static void sim_test_task(void *pvParameters) {
     }
 
     // Cleanup - disconnect and deinitialize modem
+    // CRITICAL: Must wait long enough for LWIP timers to expire to prevent crash
     ESP_LOGI(TAG, "Cleaning up SIM test - disconnecting PPP...");
     a7670c_ppp_disconnect();
-    vTaskDelay(pdMS_TO_TICKS(2000));  // Wait for disconnect to complete
+
+    // Wait for PPP/LWIP stack to fully settle before deinit
+    ESP_LOGI(TAG, "Waiting for PPP stack to settle...");
+    vTaskDelay(pdMS_TO_TICKS(3000));
 
     ESP_LOGI(TAG, "Deinitializing modem...");
     a7670c_ppp_deinit();
-    vTaskDelay(pdMS_TO_TICKS(1000));  // Wait for cleanup to complete
+    vTaskDelay(pdMS_TO_TICKS(1000));
 
     ESP_LOGI(TAG, "SIM test task completed, modem deinitialized");
 
@@ -10408,14 +10415,14 @@ esp_err_t config_reset_to_defaults(void)
     g_system_config.sim_config.uart_num = UART_NUM_1;
     g_system_config.sim_config.uart_baud_rate = 115200;
 
-    // SD Card defaults (NEW)
+    // SD Card defaults (VSPI configuration - avoids boot pin conflicts)
     g_system_config.sd_config.enabled = true;   // ENABLED by default for production use
     g_system_config.sd_config.cache_on_failure = true;  // Auto-cache when network fails
-    g_system_config.sd_config.mosi_pin = GPIO_NUM_13;
-    g_system_config.sd_config.miso_pin = GPIO_NUM_12;
-    g_system_config.sd_config.clk_pin = GPIO_NUM_14;
-    g_system_config.sd_config.cs_pin = GPIO_NUM_5;
-    g_system_config.sd_config.spi_host = SPI2_HOST;
+    g_system_config.sd_config.mosi_pin = GPIO_NUM_23;  // VSPI MOSI
+    g_system_config.sd_config.miso_pin = GPIO_NUM_19;  // VSPI MISO
+    g_system_config.sd_config.clk_pin = GPIO_NUM_5;    // CLK
+    g_system_config.sd_config.cs_pin = GPIO_NUM_15;    // CS
+    g_system_config.sd_config.spi_host = SPI3_HOST;    // VSPI
     g_system_config.sd_config.max_message_size = 1024;
     g_system_config.sd_config.min_free_space_mb = 10;
 

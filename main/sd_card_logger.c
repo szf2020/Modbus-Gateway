@@ -13,7 +13,7 @@
 
 static const char *TAG = "SD_CARD";
 
-// Hardware pin configuration (VSPI - Safe from boot conflicts)
+// Hardware pin configuration (VSPI native pins)
 #define SD_CARD_MOSI GPIO_NUM_23
 #define SD_CARD_MISO GPIO_NUM_19
 #define SD_CARD_CLK GPIO_NUM_5
