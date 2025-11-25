@@ -202,19 +202,57 @@ static esp_err_t init_modem_for_ppp(void) {
 
     int retry_count = 0;
     esp_err_t ret = ESP_FAIL;
+    bool tried_ppp_escape = false;
 
     // Try multiple times with increasing delays - modem might be already on or in PPP mode
-    for (retry_count = 0; retry_count < 3 && ret != ESP_OK; retry_count++) {
+    for (retry_count = 0; retry_count < 5 && ret != ESP_OK; retry_count++) {
         if (retry_count > 0) {
-            ESP_LOGW(TAG, "   Retry %d/3: Sending attention command...", retry_count);
-            // Send multiple AT commands to break out of any state
+            ESP_LOGW(TAG, "   Retry %d/5: Sending attention command...", retry_count);
             uart_flush(modem_config.uart_num);
             vTaskDelay(pdMS_TO_TICKS(100));
         }
 
         ret = send_at_command("AT", "OK", 1000);
 
-        if (ret != ESP_OK && retry_count < 2) {
+        if (ret != ESP_OK) {
+            // After 2 failed attempts, try to escape PPP mode
+            // Modem might be stuck in PPP data mode from previous session
+            if (retry_count == 1 && !tried_ppp_escape) {
+                ESP_LOGW(TAG, "🔄 Modem not responding - trying to escape PPP mode...");
+                tried_ppp_escape = true;
+
+                // Guard time before escape sequence (1 second of silence)
+                vTaskDelay(pdMS_TO_TICKS(1100));
+
+                // Send PPP escape sequence: +++ (without CR/LF)
+                const char* escape_seq = "+++";
+                uart_write_bytes(modem_config.uart_num, escape_seq, 3);
+                ESP_LOGI(TAG, "   Sent escape sequence +++");
+
+                // Guard time after escape sequence
+                vTaskDelay(pdMS_TO_TICKS(1100));
+
+                // Flush any response
+                uart_flush(modem_config.uart_num);
+                vTaskDelay(pdMS_TO_TICKS(500));
+
+                // Send ATH to hang up any data call
+                ESP_LOGI(TAG, "   Sending ATH to hang up...");
+                uart_write_bytes(modem_config.uart_num, "ATH\r\n", 5);
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                uart_flush(modem_config.uart_num);
+            }
+
+            // After 3 failed attempts, try hardware reset
+            if (retry_count == 3) {
+                ESP_LOGW(TAG, "🔄 Performing hardware reset...");
+                gpio_set_level(modem_config.reset_pin, 0);
+                vTaskDelay(pdMS_TO_TICKS(500));
+                gpio_set_level(modem_config.reset_pin, 1);
+                ESP_LOGI(TAG, "   Waiting 10 seconds for modem to restart...");
+                vTaskDelay(pdMS_TO_TICKS(10000));
+            }
+
             vTaskDelay(pdMS_TO_TICKS(500));
         }
     }
