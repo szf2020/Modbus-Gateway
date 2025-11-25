@@ -546,16 +546,26 @@ static const char* html_header =
 "if(data.sim){"
 "const simStatus=document.getElementById('sim_status');"
 "if(simStatus){"
-"simStatus.textContent=data.sim.status==='connected'?'Connected ('+data.sim.ip+')':'Disconnected';"
+"simStatus.textContent=data.sim.status==='connected'?'Connected':'Disconnected';"
 "simStatus.className=data.sim.status==='connected'?'status-good':'status-error';"
 "}"
 "const simSignal=document.getElementById('sim_signal');"
-"if(simSignal&&data.sim.signal!==0){"
-"simSignal.textContent=data.sim.signal+' dBm ('+data.sim.signal_quality+')';"
+"if(simSignal){"
+"if(data.sim.signal!==0){simSignal.textContent=data.sim.signal+' dBm ('+data.sim.signal_quality+')';}"
+"else if(data.sim.status==='connected'){simSignal.textContent='Good';}"
+"else{simSignal.textContent='N/A';}"
 "}"
-"const simOperator=document.getElementById('sim_operator');"
-"if(simOperator&&data.sim.operator!=='Unknown'){"
-"simOperator.textContent=data.sim.operator;"
+"const simNetwork=document.getElementById('sim_network');"
+"if(simNetwork){"
+"if(data.sim.operator&&data.sim.operator!=='Unknown'){simNetwork.textContent=data.sim.operator;}"
+"else if(data.sim.status==='connected'){simNetwork.textContent='Connected';}"
+"else{simNetwork.textContent='N/A';}"
+"}"
+"const simIp=document.getElementById('sim_ip');"
+"if(simIp){"
+"if(data.sim.ip&&data.sim.ip!=='N/A'){simIp.textContent=data.sim.ip;}"
+"else if(data.sim.status==='connected'){simIp.textContent='Assigned';}"
+"else{simIp.textContent='N/A';}"
 "}"
 "}"
 "}).catch(err=>console.log('Status update failed:',err));"
@@ -9637,6 +9647,45 @@ static esp_err_t api_sim_test_handler(httpd_req_t *req) {
     // Initialize mutex if needed
     if (g_sim_test_mutex == NULL) {
         g_sim_test_mutex = xSemaphoreCreateMutex();
+    }
+
+    // Check if SIM is already connected (from boot or previous test)
+    // If so, just return current status instead of re-running test (would crash UART)
+    if (a7670c_ppp_is_connected()) {
+        ESP_LOGI(TAG, "[SIM_TEST] SIM already connected - returning current status");
+
+        // Get current connection info
+        char ip_str[32] = "";
+        a7670c_ppp_get_ip_info(ip_str, sizeof(ip_str));
+
+        signal_strength_t signal;
+        memset(&signal, 0, sizeof(signal));
+        a7670c_get_stored_signal_strength(&signal);
+
+        // Update status with current values
+        xSemaphoreTake(g_sim_test_mutex, portMAX_DELAY);
+        g_sim_test_status.in_progress = false;
+        g_sim_test_status.completed = true;
+        g_sim_test_status.success = true;
+        strncpy(g_sim_test_status.ip, ip_str, sizeof(g_sim_test_status.ip) - 1);
+        g_sim_test_status.signal = signal.rssi_dbm;
+        if (signal.quality != NULL) {
+            strncpy(g_sim_test_status.signal_quality, signal.quality, sizeof(g_sim_test_status.signal_quality) - 1);
+        } else {
+            strncpy(g_sim_test_status.signal_quality, "Good", sizeof(g_sim_test_status.signal_quality) - 1);
+        }
+        strncpy(g_sim_test_status.operator_name, signal.operator_name, sizeof(g_sim_test_status.operator_name) - 1);
+        strncpy(g_sim_test_status.apn, g_system_config.sim_config.apn, sizeof(g_sim_test_status.apn) - 1);
+        xSemaphoreGive(g_sim_test_mutex);
+
+        // Return already connected response
+        char response[512];
+        snprintf(response, sizeof(response),
+                 "{\"status\":\"already_connected\",\"message\":\"SIM already connected\","
+                 "\"ip\":\"%s\",\"signal\":%d,\"operator\":\"%s\"}",
+                 ip_str, signal.rssi_dbm, signal.operator_name);
+        httpd_resp_sendstr(req, response);
+        return ESP_OK;
     }
 
     // Check if test already in progress
