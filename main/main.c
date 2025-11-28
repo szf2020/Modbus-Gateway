@@ -34,6 +34,7 @@
 #include "a7670c_ppp.h"
 #include "telegram_bot.h"
 #include "cJSON.h"
+#include "esp_crt_bundle.h"
 
 static const char *TAG = "AZURE_IOT";
 
@@ -868,10 +869,57 @@ static void troubleshoot_azure_connectivity(void) {
     }
 }
 
+// Helper function to check if time is synchronized
+static bool is_time_synced(void) {
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    // Time is synced if year is 2020 or later
+    return (timeinfo.tm_year >= (2020 - 1900));
+}
+
 static int initialize_mqtt_client(void) {
     ESP_LOGI(TAG, "[LINK] Initializing MQTT client on core %d", xPortGetCoreID());
 
     system_config_t* config = get_system_config();
+
+    // Wait for time synchronization (required for TLS certificate validation)
+    // TLS will fail with CERT_VERIFY_FAILED if system time is 1970
+    ESP_LOGI(TAG, "[TIME] Checking time synchronization for TLS...");
+    int time_wait_count = 0;
+    const int max_time_wait = 30;  // Wait up to 30 seconds for time sync
+
+    while (!is_time_synced() && time_wait_count < max_time_wait) {
+        if (time_wait_count == 0) {
+            ESP_LOGW(TAG, "[TIME] System time not synced (shows 1970) - waiting for NTP/RTC...");
+            ESP_LOGW(TAG, "[TIME] TLS certificate verification requires valid system time");
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        time_wait_count++;
+
+        if (time_wait_count % 10 == 0) {
+            ESP_LOGI(TAG, "[TIME] Still waiting for time sync... (%d/%d)", time_wait_count, max_time_wait);
+        }
+    }
+
+    if (!is_time_synced()) {
+        ESP_LOGE(TAG, "[TIME] Time synchronization failed after %d seconds", max_time_wait);
+        ESP_LOGE(TAG, "[TIME] TLS certificate verification will fail - check network/NTP/RTC");
+        ESP_LOGE(TAG, "[TIME] Possible causes:");
+        ESP_LOGE(TAG, "[TIME]   1. No network connection (NTP unreachable)");
+        ESP_LOGE(TAG, "[TIME]   2. DS3231 RTC not connected or not configured");
+        ESP_LOGE(TAG, "[TIME]   3. Firewall blocking NTP (port 123 UDP)");
+        // Continue anyway - will fail with better error message at TLS handshake
+    } else {
+        time_t now;
+        struct tm timeinfo;
+        time(&now);
+        localtime_r(&now, &timeinfo);
+        char time_str[64];
+        strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &timeinfo);
+        ESP_LOGI(TAG, "[TIME] ✅ System time synced: %s", time_str);
+    }
 
     // Check network connection based on mode
     if (config->network_mode == NETWORK_MODE_WIFI) {
@@ -969,7 +1017,9 @@ static int initialize_mqtt_client(void) {
         .session.disable_clean_session = 0,
         .session.protocol_ver = MQTT_PROTOCOL_V_3_1_1,  // Force MQTT 3.1.1 like Arduino 1.0.6
         .network.disable_auto_reconnect = false,
-        .broker.verification.certificate = (const char*)azure_root_ca_pem_start,
+        // Use ESP-IDF certificate bundle for better compatibility with PPP mode
+        // The bundle includes all major root CAs and handles certificate chains properly
+        .broker.verification.crt_bundle_attach = esp_crt_bundle_attach,
     };
 
     mqtt_client = esp_mqtt_client_init(&mqtt_config);
@@ -2229,14 +2279,31 @@ void app_main(void) {
         return;
     }
 
-    // Initialize WiFi stack only if not already initialized during auto-start
-    // Check if WiFi was already initialized (e.g., from auto-start of web server)
+    // Initialize WiFi stack only if:
+    // 1. Not already initialized during auto-start (setup mode)
+    // 2. AND we are using WiFi mode (not SIM mode - to save ~50KB heap)
     if (get_config_state() != CONFIG_STATE_SETUP) {
-        // Only initialize WiFi if we're not already in setup mode (which means WiFi was initialized)
-        ret = web_config_start_ap_mode();  // This actually starts STA mode for normal operation
-        if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "[WARN] WiFi initialization had issues - some features may not work");
-            // Don't return - allow system to continue for modbus-only or SIM operation
+        if (config->network_mode == NETWORK_MODE_WIFI) {
+            // WiFi mode - initialize WiFi stack
+            ret = web_config_start_ap_mode();  // This actually starts STA mode for normal operation
+            if (ret != ESP_OK) {
+                ESP_LOGW(TAG, "[WARN] WiFi initialization had issues - some features may not work");
+                // Don't return - allow system to continue for modbus-only or SIM operation
+            }
+        } else {
+            // SIM mode - skip WiFi initialization to save memory
+            ESP_LOGI(TAG, "[NET] SIM mode selected - skipping WiFi initialization to save memory");
+            ESP_LOGI(TAG, "[NET] WiFi AP can be enabled later via GPIO toggle if needed");
+
+            // Still need to initialize netif and event loop for PPP
+            esp_err_t netif_ret = esp_netif_init();
+            if (netif_ret != ESP_OK && netif_ret != ESP_ERR_INVALID_STATE) {
+                ESP_LOGE(TAG, "Failed to initialize netif: %s", esp_err_to_name(netif_ret));
+            }
+            netif_ret = esp_event_loop_create_default();
+            if (netif_ret != ESP_OK && netif_ret != ESP_ERR_INVALID_STATE) {
+                ESP_LOGE(TAG, "Failed to create event loop: %s", esp_err_to_name(netif_ret));
+            }
         }
     } else {
         ESP_LOGI(TAG, "[NET] WiFi already initialized during setup mode - skipping re-initialization");

@@ -195,6 +195,69 @@ static void uart_rx_task(void *pvParameters) {
     vTaskDelete(NULL);
 }
 
+// Helper function to exit PPP data mode
+static void exit_ppp_data_mode(void) {
+    ESP_LOGI(TAG, "🔄 Attempting to exit PPP data mode...");
+
+    // Step 1: Guard time before escape sequence (must be silent for 1+ second)
+    vTaskDelay(pdMS_TO_TICKS(1200));
+
+    // Step 2: Send PPP escape sequence: +++ (without CR/LF, must be sent within 1 second)
+    uart_write_bytes(modem_config.uart_num, "+++", 3);
+    ESP_LOGI(TAG, "   Sent escape sequence +++");
+
+    // Step 3: Guard time after escape sequence (1+ second)
+    vTaskDelay(pdMS_TO_TICKS(1200));
+
+    // Step 4: Flush UART and read any response
+    uint8_t buf[128];
+    int len = uart_read_bytes(modem_config.uart_num, buf, sizeof(buf) - 1, pdMS_TO_TICKS(500));
+    if (len > 0) {
+        buf[len] = '\0';
+        ESP_LOGI(TAG, "   Response after +++: %s", buf);
+    }
+
+    // Step 5: Send ATH to hang up the data call
+    ESP_LOGI(TAG, "   Sending ATH to hang up data call...");
+    uart_write_bytes(modem_config.uart_num, "ATH\r\n", 5);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    // Read ATH response
+    len = uart_read_bytes(modem_config.uart_num, buf, sizeof(buf) - 1, pdMS_TO_TICKS(500));
+    if (len > 0) {
+        buf[len] = '\0';
+        ESP_LOGI(TAG, "   ATH response: %s", buf);
+    }
+
+    // Step 6: Deactivate PDP context to ensure clean state for next connection
+    // NOTE: This is important - without deactivating, next ATD*99# may fail
+    ESP_LOGI(TAG, "   Deactivating PDP context...");
+    uart_write_bytes(modem_config.uart_num, "AT+CGACT=0,1\r\n", 14);
+    vTaskDelay(pdMS_TO_TICKS(2000));
+
+    // Read response
+    len = uart_read_bytes(modem_config.uart_num, buf, sizeof(buf) - 1, pdMS_TO_TICKS(500));
+    if (len > 0) {
+        buf[len] = '\0';
+        ESP_LOGI(TAG, "   CGACT response: %s", buf);
+    }
+
+    // Step 7: Reactivate PDP context immediately so it's ready for dial
+    ESP_LOGI(TAG, "   Reactivating PDP context...");
+    uart_write_bytes(modem_config.uart_num, "AT+CGACT=1,1\r\n", 14);
+    vTaskDelay(pdMS_TO_TICKS(3000));  // Give more time for PDP activation
+
+    // Read response
+    len = uart_read_bytes(modem_config.uart_num, buf, sizeof(buf) - 1, pdMS_TO_TICKS(500));
+    if (len > 0) {
+        buf[len] = '\0';
+        ESP_LOGI(TAG, "   CGACT reactivate response: %s", buf);
+    }
+
+    uart_flush(modem_config.uart_num);
+    ESP_LOGI(TAG, "   PPP exit sequence complete");
+}
+
 // Initialize modem for PPP
 static esp_err_t init_modem_for_ppp(void) {
     // Test communication with retry logic (modem might be in unknown state after reboot)
@@ -203,54 +266,46 @@ static esp_err_t init_modem_for_ppp(void) {
     int retry_count = 0;
     esp_err_t ret = ESP_FAIL;
     bool tried_ppp_escape = false;
+    bool tried_hardware_reset = false;
 
-    // Try multiple times with increasing delays - modem might be already on or in PPP mode
-    for (retry_count = 0; retry_count < 5 && ret != ESP_OK; retry_count++) {
-        if (retry_count > 0) {
-            ESP_LOGW(TAG, "   Retry %d/5: Sending attention command...", retry_count);
-            uart_flush(modem_config.uart_num);
-            vTaskDelay(pdMS_TO_TICKS(100));
-        }
+    // IMPORTANT: On ESP32 reboot, modem may still be in PPP data mode from previous session
+    // Try a quick AT command first, if it fails, immediately try to exit PPP mode
+    uart_flush(modem_config.uart_num);
+    ret = send_at_command("AT", "OK", 500);  // Quick check with short timeout
+
+    if (ret != ESP_OK) {
+        // Modem not responding - likely still in PPP data mode
+        ESP_LOGW(TAG, "⚠️ Modem not responding to AT command");
+        ESP_LOGW(TAG, "   Likely stuck in PPP data mode from previous session");
+        exit_ppp_data_mode();
+        tried_ppp_escape = true;
+    }
+
+    // Try multiple times with increasing delays
+    for (retry_count = 0; retry_count < 6 && ret != ESP_OK; retry_count++) {
+        ESP_LOGI(TAG, "   Attempt %d/6: Testing modem response...", retry_count + 1);
+        uart_flush(modem_config.uart_num);
+        vTaskDelay(pdMS_TO_TICKS(200));
 
         ret = send_at_command("AT", "OK", 1000);
 
         if (ret != ESP_OK) {
-            // After 2 failed attempts, try to escape PPP mode
-            // Modem might be stuck in PPP data mode from previous session
-            if (retry_count == 1 && !tried_ppp_escape) {
-                ESP_LOGW(TAG, "🔄 Modem not responding - trying to escape PPP mode...");
+            // Try PPP escape again on retry 2 if we haven't succeeded yet
+            if (retry_count == 2 && !tried_ppp_escape) {
+                ESP_LOGW(TAG, "🔄 Trying PPP escape sequence...");
+                exit_ppp_data_mode();
                 tried_ppp_escape = true;
-
-                // Guard time before escape sequence (1 second of silence)
-                vTaskDelay(pdMS_TO_TICKS(1100));
-
-                // Send PPP escape sequence: +++ (without CR/LF)
-                const char* escape_seq = "+++";
-                uart_write_bytes(modem_config.uart_num, escape_seq, 3);
-                ESP_LOGI(TAG, "   Sent escape sequence +++");
-
-                // Guard time after escape sequence
-                vTaskDelay(pdMS_TO_TICKS(1100));
-
-                // Flush any response
-                uart_flush(modem_config.uart_num);
-                vTaskDelay(pdMS_TO_TICKS(500));
-
-                // Send ATH to hang up any data call
-                ESP_LOGI(TAG, "   Sending ATH to hang up...");
-                uart_write_bytes(modem_config.uart_num, "ATH\r\n", 5);
-                vTaskDelay(pdMS_TO_TICKS(1000));
-                uart_flush(modem_config.uart_num);
             }
 
-            // After 3 failed attempts, try hardware reset
-            if (retry_count == 3) {
+            // Hardware reset on retry 4
+            if (retry_count == 4 && !tried_hardware_reset) {
                 ESP_LOGW(TAG, "🔄 Performing hardware reset...");
                 gpio_set_level(modem_config.reset_pin, 0);
                 vTaskDelay(pdMS_TO_TICKS(500));
                 gpio_set_level(modem_config.reset_pin, 1);
                 ESP_LOGI(TAG, "   Waiting 10 seconds for modem to restart...");
                 vTaskDelay(pdMS_TO_TICKS(10000));
+                tried_hardware_reset = true;
             }
 
             vTaskDelay(pdMS_TO_TICKS(500));
@@ -356,6 +411,17 @@ static esp_err_t init_modem_for_ppp(void) {
         ESP_LOGW(TAG, "Failed to get signal strength, continuing anyway...");
         signal_checked = false;
     }
+
+    // Activate PDP context before dialing (critical for reliable PPP)
+    ESP_LOGI(TAG, "🔌 Activating PDP context...");
+    esp_err_t pdp_ret = send_at_command("AT+CGACT=1,1", "OK", 10000);
+    if (pdp_ret != ESP_OK) {
+        ESP_LOGW(TAG, "PDP activation returned error - will try dialing anyway");
+        // Don't fail here - some modems don't need explicit activation
+    } else {
+        ESP_LOGI(TAG, "✓ PDP context activated");
+    }
+    vTaskDelay(pdMS_TO_TICKS(1000));
 
     // Enter PPP mode
     ESP_LOGI(TAG, "🔗 Entering PPP mode...");
@@ -539,6 +605,27 @@ esp_err_t a7670c_ppp_connect(void) {
         ESP_LOGI(TAG, "✅ Modem initialized successfully after %d previous failures", modem_init_failures);
     }
     modem_init_failures = 0;
+
+    // Clean up any existing PPP resources from previous session/attempt
+    if (ppp_netif != NULL) {
+        ESP_LOGW(TAG, "🧹 Cleaning up existing PPP netif from previous session...");
+
+        // Stop UART RX task first
+        if (uart_rx_task_handle != NULL) {
+            uart_rx_task_running = false;
+            vTaskDelay(pdMS_TO_TICKS(200));  // Give task time to exit
+            uart_rx_task_handle = NULL;
+        }
+
+        // Stop and destroy old netif
+        esp_netif_action_stop(ppp_netif, NULL, 0, NULL);
+        vTaskDelay(pdMS_TO_TICKS(500));
+        esp_netif_destroy(ppp_netif);
+        ppp_netif = NULL;
+        ppp_connected = false;
+        xEventGroupClearBits(ppp_event_group, PPP_CONNECTED_BIT);
+        ESP_LOGI(TAG, "   Old PPP resources cleaned up");
+    }
 
     ESP_LOGI(TAG, "🔧 Creating PPP network interface...");
 
