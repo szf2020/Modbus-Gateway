@@ -2293,7 +2293,9 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         g_system_config.rtc_config.i2c_num == 1 ? "selected" : "");
     httpd_resp_sendstr_chunk(req, chunk);
 
-    // Telegram Bot Configuration Section
+    // Telegram Bot Configuration Section - HIDDEN (feature not ready)
+    // To re-enable, remove the #if 0 / #endif wrapper
+#if 0
     snprintf(chunk, sizeof(chunk),
         "<div class='sensor-card' style='padding:25px;margin-top:30px'>"
         "<form id='telegram_config_form' onsubmit='return saveTelegramConfig()'>"
@@ -2368,6 +2370,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         g_system_config.telegram_config.alerts_enabled ? "checked" : "",
         g_system_config.telegram_config.startup_notification ? "checked" : "");
     httpd_resp_sendstr_chunk(req, chunk);
+#endif  // End of hidden Telegram section
 
     // Configuration Trigger Section
     snprintf(chunk, sizeof(chunk),

@@ -177,6 +177,7 @@ idf.py monitor -f esp32_exception_decoder
 - Verify GPIO pins don't conflict before adding new peripherals
 - Test web interface in browser console for JavaScript errors
 - Remember that sections can be lost when fixing corruption
+- **DO NOT attempt to run build commands** - User will build manually
 
 **File Edit Priority:**
 1. Try to edit smaller files when possible
@@ -186,6 +187,6 @@ idf.py monitor -f esp32_exception_decoder
 
 ---
 
-**Last Updated**: November 20, 2024
-**Last Known Working Commit**: 03a4c6b
-**Critical Issue Fixed**: Web config sections restored after corruption
+**Last Updated**: November 30, 2024
+**Last Known Working Commit**: e0ee803
+**Critical Issue Fixed**: Memory optimization for WiFi AP + PPP + MQTT coexistence

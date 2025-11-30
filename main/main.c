@@ -1753,7 +1753,18 @@ static void mqtt_task(void *pvParameters)
     if (startup_log_mutex != NULL) {
         xSemaphoreGive(startup_log_mutex);
     }
-    
+
+    // Skip MQTT initialization in setup mode - only needed for operation mode
+    // This saves memory when WiFi AP + PPP are both running for configuration
+    if (get_config_state() == CONFIG_STATE_SETUP) {
+        ESP_LOGW(TAG, "[MQTT] Setup mode active - skipping MQTT initialization");
+        ESP_LOGW(TAG, "[MQTT] MQTT will connect after clicking 'Start Operation'");
+        ESP_LOGW(TAG, "[MQTT] This saves memory for stable web configuration");
+        mqtt_task_handle = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
+
     // Initialize MQTT client
     if (initialize_mqtt_client() != 0) {
         ESP_LOGE(TAG, "[ERROR] Failed to initialize MQTT client");
@@ -1788,6 +1799,15 @@ static void telemetry_task(void *pvParameters)
 {
     // Wait a bit to let the system stabilize and avoid log collision
     vTaskDelay(pdMS_TO_TICKS(300));
+
+    // Skip telemetry in setup mode - depends on MQTT which is also skipped
+    if (get_config_state() == CONFIG_STATE_SETUP) {
+        ESP_LOGW(TAG, "[DATA] Setup mode active - skipping telemetry task");
+        ESP_LOGW(TAG, "[DATA] Telemetry will start after clicking 'Start Operation'");
+        telemetry_task_handle = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
 
     // Use mutex to prevent log interleaving during startup
     if (startup_log_mutex != NULL) {
