@@ -29,6 +29,7 @@ json_template_type_t get_json_type_from_sensor_type(const char* sensor_type)
         strcasecmp(sensor_type, "Dailian") == 0 ||
         strcasecmp(sensor_type, "Dailian_EMF") == 0 ||
         strcasecmp(sensor_type, "Panda_USM") == 0 ||
+        strcasecmp(sensor_type, "Panda_EMF") == 0 ||
         strstr(sensor_type, "flow") != NULL ||      // Match any type containing "flow"
         strstr(sensor_type, "Flow") != NULL ||
         strstr(sensor_type, "FLOW") != NULL ||

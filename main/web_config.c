@@ -2928,6 +2928,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "  h += '<option value=\"Clampon\">Clampon</option>';"
         "  h += '<option value=\"Dailian\">Dailian Ultrasonic</option>';"
         "  h += '<option value=\"Dailian_EMF\">Dailian EMF</option>';"
+        "  h += '<option value=\"Panda_EMF\">Panda EMF</option>';"
         "  h += '<option value=\"Piezometer\">Piezometer (Water Level)</option>';"
         "  h += '<option value=\"Level\">Level</option>';"
         "  h += '<option value=\"Radar Level\">Radar Level</option>';"
@@ -2982,6 +2983,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "  h += '<option value=\"Clampon\">Clampon</option>';"
         "  h += '<option value=\"Dailian\">Dailian Ultrasonic</option>';"
         "  h += '<option value=\"Dailian_EMF\">Dailian EMF</option>';"
+        "  h += '<option value=\"Panda_EMF\">Panda EMF</option>';"
         "  h += '<option value=\"Piezometer\">Piezometer (Water Level)</option>';"
         "  h += '<option value=\"Level\">Level</option>';"
         "  h += '<option value=\"Radar Level\">Radar Level</option>';"
@@ -3217,7 +3219,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "formHtml += '</select>';"
         "formHtml += '<small style=\"color:#888;display:block;margin-top:5px;font-size:13px\">Modbus register type</small></div>';"
         "formHtml += '</div>';"
-        "if (sensorType !== 'ZEST' && sensorType !== 'Clampon' && sensorType !== 'Dailian' && sensorType !== 'Dailian_EMF' && sensorType !== 'Piezometer') {"
+        "if (sensorType !== 'ZEST' && sensorType !== 'Clampon' && sensorType !== 'Dailian' && sensorType !== 'Dailian_EMF' && sensorType !== 'Panda_EMF' && sensorType !== 'Piezometer') {"
         "formHtml += '<div style=\"display:grid;grid-template-columns:180px 1fr;gap:20px;align-items:start;margin-top:20px\">';"
         "formHtml += '<label style=\"font-weight:600;padding-top:10px\">Data Type:</label>';"
         "formHtml += '<div><select name=\"sensor_' + sensorId + '_data_type\" style=\"width:100%;padding:10px;border:1px solid #e0e0e0;border-radius:6px;font-size:15px\" onchange=\"showDataTypeInfo(this, ' + sensorId + ')\">';"
@@ -3288,6 +3290,10 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "formHtml += '<input type=\"hidden\" name=\"sensor_' + sensorId + '_data_type\" value=\"DAILIAN_EMF_FIXED\">';"
         "formHtml += '<p style=\"color:#28a745;font-size:12px;margin:10px 0\"><strong>Data Format:</strong> Fixed - UINT32 word-swapped (Totaliser)</p>';"
         "formHtml += '<p style=\"color:#007bff;font-size:11px;margin:5px 0\"><em>Dailian EMF defaults: Register 2006 (0x07D6), Quantity 2 - 32-bit totaliser value</em></p>';"
+        "} else if (sensorType === 'Panda_EMF') {"
+        "formHtml += '<input type=\"hidden\" name=\"sensor_' + sensorId + '_data_type\" value=\"PANDA_EMF_FIXED\">';"
+        "formHtml += '<p style=\"color:#28a745;font-size:12px;margin:10px 0\"><strong>Data Format:</strong> Fixed - INT32_BE (Integer) + FLOAT32_BE (Decimal)</p>';"
+        "formHtml += '<p style=\"color:#007bff;font-size:11px;margin:5px 0\"><em>Panda EMF defaults: Register 4114 (0x1012), Quantity 4 - Totaliser (Integer + Float decimal)</em></p>';"
         "} else if (sensorType === 'Piezometer') {"
         "formHtml += '<input type=\"hidden\" name=\"sensor_' + sensorId + '_data_type\" value=\"UINT16_HI\">';"
         "formHtml += '<p style=\"color:#28a745;font-size:12px;margin:10px 0\"><strong>Data Format:</strong> Fixed - UINT16_HI (16-bit unsigned integer)</p>';"
@@ -3373,6 +3379,12 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "formHtml += '<div><input type=\"number\" name=\"sensor_' + sensorId + '_scale_factor\" value=\"1.0\" step=\"any\" style=\"width:100%;padding:10px;border:1px solid #e0e0e0;border-radius:6px;font-size:15px\">';"
         "formHtml += '<small style=\"color:#888;display:block;margin-top:5px;font-size:13px\">Multiplier for totaliser value</small></div></div>';"
         "formHtml += '<p style=\"color:#28a745;font-size:13px;margin:15px 0;padding:10px;background:#f0fff4;border:1px solid #28a745;border-radius:4px\"><strong>Fixed format - UINT32 word-swapped (Dailian EMF) - no data type selection needed</strong></p>';"
+        "} else if (sensorType === 'Panda_EMF') {"
+        "formHtml += '<div style=\"display:grid;grid-template-columns:180px 1fr;gap:20px;align-items:start;margin-top:20px\">';"
+        "formHtml += '<label style=\"font-weight:600;padding-top:10px\">Scale Factor:</label>';"
+        "formHtml += '<div><input type=\"number\" name=\"sensor_' + sensorId + '_scale_factor\" value=\"1.0\" step=\"any\" style=\"width:100%;padding:10px;border:1px solid #e0e0e0;border-radius:6px;font-size:15px\">';"
+        "formHtml += '<small style=\"color:#888;display:block;margin-top:5px;font-size:13px\">Multiplier for totaliser value</small></div></div>';"
+        "formHtml += '<p style=\"color:#28a745;font-size:13px;margin:15px 0;padding:10px;background:#f0fff4;border:1px solid #28a745;border-radius:4px\"><strong>Fixed format - INT32_BE + FLOAT32_BE (Panda EMF) - no data type selection needed</strong></p>';"
         "} else if (sensorType === 'Piezometer') {"
         "formHtml += '<div style=\"display:grid;grid-template-columns:180px 1fr;gap:20px;align-items:start;margin-top:20px\">';"
         "formHtml += '<label style=\"font-weight:600;padding-top:10px\">Scale Factor:</label>';"
@@ -3401,6 +3413,13 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "const scaleInput = document.querySelector('input[name=\"sensor_' + sensorId + '_scale_factor\"]');"
         "if (quantityInput) quantityInput.value = '2';"
         "if (regAddrInput) regAddrInput.value = '2006';"
+        "if (scaleInput) scaleInput.value = '1.0';"
+        "} else if (sensorType === 'Panda_EMF') {"
+        "const quantityInput = document.querySelector('input[name=\"sensor_' + sensorId + '_quantity\"]');"
+        "const regAddrInput = document.querySelector('input[name=\"sensor_' + sensorId + '_register_address\"]');"
+        "const scaleInput = document.querySelector('input[name=\"sensor_' + sensorId + '_scale_factor\"]');"
+        "if (quantityInput) quantityInput.value = '4';"
+        "if (regAddrInput) regAddrInput.value = '4114';"
         "if (scaleInput) scaleInput.value = '1.0';"
         "} else if (sensorType === 'Piezometer') {"
         "const quantityInput = document.querySelector('input[name=\"sensor_' + sensorId + '_quantity\"]');"
@@ -5026,12 +5045,12 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "const sensorTypeElem=document.querySelector('select[name=\"sensor_'+sensorId+'_sensor_type\"]');"
         "let sensorType=sensorTypeElem ? sensorTypeElem.value : '';"
         "console.log('Form elements found:', {slaveId: !!slaveIdElem, regAddr: !!regAddrElem, quantity: !!quantityElem, dataType: !!dataTypeElem, baudRate: !!baudRateElem, parity: !!parityElem, registerType: !!registerTypeElem, sensorType: !!sensorTypeElem});"
-        "if(!slaveIdElem||!regAddrElem||!quantityElem||(sensorType !== 'ZEST' && sensorType !== 'Clampon' && sensorType !== 'Dailian' && sensorType !== 'Dailian_EMF' && sensorType !== 'Piezometer' && !dataTypeElem)||!baudRateElem||!parityElem){"
+        "if(!slaveIdElem||!regAddrElem||!quantityElem||(sensorType !== 'ZEST' && sensorType !== 'Clampon' && sensorType !== 'Dailian' && sensorType !== 'Dailian_EMF' && sensorType !== 'Panda_EMF' && sensorType !== 'Piezometer' && !dataTypeElem)||!baudRateElem||!parityElem){"
         "let missingFields=[];"
         "if(!slaveIdElem) missingFields.push('slave_id');"
         "if(!regAddrElem) missingFields.push('register_address');"
         "if(!quantityElem) missingFields.push('quantity');"
-        "if(sensorType !== 'ZEST' && sensorType !== 'Clampon' && sensorType !== 'Dailian' && sensorType !== 'Dailian_EMF' && sensorType !== 'Piezometer' && !dataTypeElem) missingFields.push('data_type');"
+        "if(sensorType !== 'ZEST' && sensorType !== 'Clampon' && sensorType !== 'Dailian' && sensorType !== 'Dailian_EMF' && sensorType !== 'Panda_EMF' && sensorType !== 'Piezometer' && !dataTypeElem) missingFields.push('data_type');"
         "if(!baudRateElem) missingFields.push('baud_rate');"
         "if(!parityElem) missingFields.push('parity');"
         "resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\"><strong>ERROR: Missing Form Elements</strong><br>Cannot find: '+missingFields.join(', ')+'<br>Please make sure all form fields are filled and visible.</div>';"
@@ -5044,6 +5063,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "if(sensorType==='Clampon' && !dataType) dataType='CLAMPON_FIXED';"
         "if(sensorType==='Dailian' && !dataType) dataType='UINT32_3412';"
         "if(sensorType==='Dailian_EMF' && !dataType) dataType='DAILIAN_EMF_FIXED';"
+        "if(sensorType==='Panda_EMF' && !dataType) dataType='PANDA_EMF_FIXED';"
         "if(sensorType==='ZEST' && !dataType) dataType='ZEST_FIXED';"
         "const baudRate=baudRateElem.value||'9600';"
         "const parity=parityElem.value||'none';"
@@ -5054,7 +5074,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "sensorType='Flow-Meter';"
         "}"
         "console.log('New sensor test params:',{slaveId,regAddr,quantity,dataType,baudRate,parity,scaleFactor,sensorType});"
-        "if(sensorType !== 'ZEST' && sensorType !== 'Clampon' && sensorType !== 'Dailian' && sensorType !== 'Dailian_EMF' && sensorType !== 'Piezometer' && !dataType){"
+        "if(sensorType !== 'ZEST' && sensorType !== 'Clampon' && sensorType !== 'Dailian' && sensorType !== 'Dailian_EMF' && sensorType !== 'Panda_EMF' && sensorType !== 'Piezometer' && !dataType){"
         "resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\"><strong>ERROR: Data Type Required</strong><br>Please select a data type before testing.</div>';"
         "return;}"
         "if(!slaveId||!regAddr||!quantity||!baudRate||!parity||!scaleFactor){"
@@ -5111,7 +5131,7 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "const scaleFactor=(scaleFactorElem ? scaleFactorElem.value : null)||'1.0';"
         "const sensorType=sensor ? sensor.sensor_type : 'Flow-Meter';"
         "console.log('Edit test params:',{slaveId,regAddr,quantity,registerType,dataType,baudRate,parity,scaleFactor,sensorType});"
-        "if(sensorType !== 'ZEST' && sensorType !== 'Clampon' && sensorType !== 'Dailian' && sensorType !== 'Dailian_EMF' && sensorType !== 'Piezometer' && !dataType){"
+        "if(sensorType !== 'ZEST' && sensorType !== 'Clampon' && sensorType !== 'Dailian' && sensorType !== 'Dailian_EMF' && sensorType !== 'Panda_EMF' && sensorType !== 'Piezometer' && !dataType){"
         "resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\"><strong>ERROR: Data Type Required</strong><br>Please select a data type before testing.</div>';"
         "return;}"
         "if(!slaveId||!regAddr||!quantity||!registerType||!baudRate||!parity||!scaleFactor){"
@@ -7453,6 +7473,17 @@ static esp_err_t test_rs485_handler(httpd_req_t *req)
             uint32_t totaliser = ((uint32_t)registers[1] << 16) | registers[0];
             primary_value = (double)totaliser;
             snprintf(primary_desc, sizeof(primary_desc), "DAILIAN_EMF (Totaliser: %lu)", (unsigned long)totaliser);
+        } else if (strstr(data_type, "PANDA_EMF_FIXED") && reg_count >= 4) {
+            // PANDA_EMF_FIXED: INT32_BE (Integer) + FLOAT32_BE (Decimal)
+            // Registers [0-1]: Totalizer integer part (32-bit INT, big-endian) = (reg[0] << 16) | reg[1]
+            // Registers [2-3]: Totalizer decimal part (32-bit FLOAT, big-endian) = (reg[2] << 16) | reg[3]
+            int32_t integer_part = (int32_t)(((uint32_t)registers[0] << 16) | registers[1]);
+            uint32_t float_bits = ((uint32_t)registers[2] << 16) | registers[3];
+            float decimal_part;
+            memcpy(&decimal_part, &float_bits, sizeof(float));
+            // Total = Integer + Float decimal
+            primary_value = (double)integer_part + (double)decimal_part;
+            snprintf(primary_desc, sizeof(primary_desc), "PANDA_EMF (INT: %ld + FLOAT: %.6f)", (long)integer_part, decimal_part);
         } else if (strstr(data_type, "ASCII") && reg_count >= 1) {
             // ASCII - show first character's ASCII value
             primary_value = (double)((registers[0] >> 8) & 0xFF);
