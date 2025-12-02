@@ -43,6 +43,7 @@ json_template_type_t get_json_type_from_sensor_type(const char* sensor_type)
         strcasecmp(sensor_type, "Level") == 0 ||
         strcasecmp(sensor_type, "Radar Level") == 0 ||
         strcasecmp(sensor_type, "Piezometer") == 0 ||   // Water level sensor
+        strcasecmp(sensor_type, "Panda_Level") == 0 ||  // Panda level sensor
         strstr(sensor_type, "level") != NULL ||
         strstr(sensor_type, "Level") != NULL ||
         strstr(sensor_type, "LEVEL") != NULL) {

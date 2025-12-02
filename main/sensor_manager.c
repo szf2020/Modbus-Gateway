@@ -441,6 +441,32 @@ esp_err_t sensor_test_live(const sensor_config_t *sensor, sensor_test_result_t *
         ESP_LOGI(TAG, "Panda_EMF Calculation: Integer=0x%08lX(%ld) + Decimal(FLOAT)=0x%08lX(%.6f) = %.6f",
                  (unsigned long)((uint32_t)integer_part), (long)integer_part,
                  (unsigned long)float_bits, decimal_value, result->scaled_value);
+    }
+    // Special handling for Panda Level sensors (1 register: UINT16 level value)
+    else if (strcmp(sensor->sensor_type, "Panda_Level") == 0 && reg_count >= 1) {
+        // Panda Level reads 1 register at address 0x0001 (1):
+        // Register [0]: Level value (distance from sensor to water surface)
+        // Calculation: Level % = ((Sensor Height - Raw Value) / Tank Height) * 100
+
+        // Raw level value (distance reading)
+        uint16_t raw_level = registers[0];
+        double level_value = (double)raw_level;
+
+        // Apply the level calculation if sensor_height and max_water_level are set
+        if (sensor->max_water_level > 0) {
+            // Level % = ((Sensor Height - Raw Value) / Tank Height) * 100
+            result->scaled_value = ((sensor->sensor_height - level_value) / sensor->max_water_level) * 100.0;
+            // Clamp to 0-100% range
+            if (result->scaled_value < 0) result->scaled_value = 0.0;
+            if (result->scaled_value > 100) result->scaled_value = 100.0;
+        } else {
+            // If no tank height set, just return raw value scaled
+            result->scaled_value = level_value * sensor->scale_factor;
+        }
+        result->raw_value = raw_level;
+
+        ESP_LOGI(TAG, "Panda_Level Calculation: Raw=%u, SensorHeight=%.2f, TankHeight=%.2f, Level%%=%.2f",
+                 raw_level, sensor->sensor_height, sensor->max_water_level, result->scaled_value);
     } else {
         // Convert the data using standard conversion
         esp_err_t conv_result = convert_modbus_data(registers, reg_count,
