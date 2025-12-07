@@ -267,15 +267,15 @@ static const char* html_header =
 ".sidebar::-webkit-scrollbar-thumb:hover{background:var(--color-border-dark)}"
 ".main-content{margin-left:320px;padding:var(--space-2xl);flex:1;max-width:calc(100% - 320px)}"
 "/* ===== NAVIGATION MENU ===== */"
-".menu-item{display:flex;align-items:center;gap:var(--space-md);width:100%;padding:var(--space-xl) var(--space-xl);color:var(--color-text-primary);text-decoration:none;border:none;background:transparent;cursor:pointer;text-align:left;font-size:var(--text-base);font-family:Orbitron,monospace;font-weight:var(--weight-semibold);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid rgba(255,255,255,0.1);transition:background-color var(--transition-fast),color var(--transition-fast);position:relative;overflow:hidden}"
+".menu-item{display:flex;align-items:center;gap:16px;width:100%;padding:18px 24px;color:var(--color-text-primary);text-decoration:none;border:none;background:transparent;cursor:pointer;text-align:left;font-size:13px;font-family:Orbitron,monospace;font-weight:var(--weight-semibold);text-transform:uppercase;letter-spacing:0.08em;border-bottom:1px solid rgba(255,255,255,0.1);transition:background-color var(--transition-fast),color var(--transition-fast);position:relative;overflow:hidden;min-height:56px;box-sizing:border-box}"
 ".menu-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(180deg,var(--color-primary),var(--color-accent));transition:width var(--transition-fast)}"
 ".menu-item:hover{background:var(--color-primary-light);color:var(--color-primary)}"
 ".menu-item:hover::before{width:4px}"
 ".menu-item.active{background:linear-gradient(135deg,var(--color-primary),var(--color-accent));color:#fff;box-shadow:0 4px 16px var(--glow-primary),inset 0 1px 0 rgba(255,255,255,0.2);font-weight:var(--weight-bold)}"
 ".menu-item.active::before{width:4px;background:var(--color-success)}"
 ".menu-item.active .menu-icon{transform:scale(1.1);filter:drop-shadow(0 0 8px rgba(255,255,255,0.5))}"
-".menu-icon{width:28px;height:28px;min-width:28px;display:inline-flex;align-items:center;justify-content:center;font-size:var(--text-xl);transition:all var(--transition-base);flex-shrink:0}"
-"i.menu-icon:before{display:inline-block;width:100%;text-align:center}"
+".menu-icon{width:24px;height:24px;min-width:24px;display:inline-flex;align-items:center;justify-content:center;transition:all var(--transition-base);flex-shrink:0}"
+"svg.menu-icon{stroke:currentColor;fill:none}"
 "/* ===== SECTIONS ===== */"
 ".section{display:none;background:rgba(255,255,255,0.95);border:1px solid rgba(255,255,255,0.4);border-radius:var(--radius-2xl);padding:var(--space-2xl);margin-bottom:var(--space-2xl);box-shadow:var(--shadow-lg);position:relative;overflow:hidden;animation:fadeInUp 0.3s ease-out;width:100%;box-sizing:border-box}"
 ".section.active{display:block}"
@@ -323,7 +323,7 @@ static const char* html_header =
 ".main-content{margin-left:0!important;padding:var(--space-sm)!important;width:100%!important;max-width:100vw!important}"
 ".menu-item{padding:var(--space-xs) var(--space-sm);font-size:10px;margin:1px}"
 ".menu-item span{display:none!important}"
-".menu-icon{width:18px;height:18px;font-size:14px}"
+".menu-icon{width:18px;height:18px;min-width:18px}"
 ".card,.sensor-card,.section{padding:var(--space-sm);margin:var(--space-xs) 0}"
 ".card p:has(strong),.sensor-card p:has(strong){grid-template-columns:1fr;gap:var(--space-xs);text-align:left}"
 ".card p:has(strong) strong,.sensor-card p:has(strong) strong{font-size:11px;margin-bottom:2px;display:block}"
@@ -356,7 +356,7 @@ static const char* html_header =
 ".menu{display:flex;flex-wrap:wrap;justify-content:space-around;padding:var(--space-sm) 0}"
 ".menu-item{flex:0 0 auto;padding:var(--space-sm) var(--space-md);font-size:11px;white-space:nowrap;margin:2px;border-radius:var(--radius-sm)}"
 ".menu-item span{display:none}"
-".menu-icon{width:20px;height:20px;min-width:20px;font-size:16px;margin:0}"
+".menu-icon{width:20px;height:20px;min-width:20px;margin:0}"
 ".section{padding:var(--space-md);margin-bottom:var(--space-md);border-radius:var(--radius-md);width:100%;box-sizing:border-box}"
 ".section-title{font-size:18px;margin-bottom:var(--space-md);padding-bottom:var(--space-sm);word-wrap:break-word}"
 ".section-title i{width:28px;height:28px;font-size:16px}"
@@ -765,22 +765,25 @@ static const char* html_header =
 "<img src='/logo' class='logo' style='height:80px;max-width:100%;object-fit:contain' alt='FluxGen - Building a Water Positive Future'>"
 "</div>"
 "<button class='menu-item' onclick='showSection(\"overview\")'>"
-"<i class='menu-icon'>📈</i>OVERVIEW"
+"<svg class='menu-icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M3 3v18h18'/><path d='M18 9l-5 5-4-4-6 6'/></svg>OVERVIEW"
 "</button>"
 "<button class='menu-item' onclick='showSection(\"wifi\")'>"
-"<i class='menu-icon'>🌐</i>NETWORK CONFIG"
+"<svg class='menu-icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='6' cy='6' r='3'/><circle cx='18' cy='6' r='3'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='18' r='3'/><path d='M6 9v6M18 9v6M9 6h6M9 18h6'/></svg>NETWORK CONFIG"
 "</button>"
 "<button class='menu-item' onclick='showAzureSection()'>"
-"<i class='menu-icon'>☁</i>AZURE IOT HUB"
+"<svg class='menu-icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z'/></svg>AZURE IOT HUB"
 "</button>"
 "<button class='menu-item' onclick='showSection(\"telemetry\")'>"
-"<i class='menu-icon'>📊</i>TELEMETRY MONITOR"
+"<svg class='menu-icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M22 12h-4l-3 9L9 3l-3 9H2'/></svg>TELEMETRY MONITOR"
 "</button>"
 "<button class='menu-item' onclick='showSection(\"sensors\")'>"
-"<i class='menu-icon'>💾</i>MODBUS SENSORS"
+"<svg class='menu-icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M9 9h6v6H9z'/><path d='M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2'/></svg>MODBUS SENSORS"
 "</button>"
 "<button class='menu-item' onclick='showSection(\"write_ops\")'>"
-"<i class='menu-icon'>✎</i>WRITE OPERATIONS"
+"<svg class='menu-icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7'/><path d='M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z'/></svg>WRITE OPERATIONS"
+"</button>"
+"<button class='menu-item' onclick='showSection(\"ota\")'>"
+"<svg class='menu-icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4'/><polyline points='17 8 12 3 7 8'/><line x1='12' y1='3' x2='12' y2='15'/></svg>OTA UPDATE"
 "</button>"
 "</div>"
 "<div class='main-content'>";
@@ -5220,6 +5223,107 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "}).catch(error=>{"
         "resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">NETWORK ERROR: '+error.message+'</div>';"
         "});}"
+        "function refreshOtaStatus(){"
+        "fetch('/api/ota/status').then(r=>r.json()).then(data=>{"
+        "document.getElementById('ota_current_version').textContent=data.current_version||'Unknown';"
+        "document.getElementById('ota_current_partition').textContent=data.running_partition||'Unknown';"
+        "document.getElementById('ota_status').textContent=data.state||'Idle';"
+        "if(data.last_update)document.getElementById('ota_last_update').textContent=data.last_update;"
+        "}).catch(e=>console.error('OTA status error:',e));}"
+        "function startOtaUpdate(){"
+        "const url=document.getElementById('ota_url').value.trim();"
+        "if(!url){alert('Please enter a firmware URL');return;}"
+        "if(!url.startsWith('http://') && !url.startsWith('https://')){alert('URL must start with http:// or https://');return;}"
+        "if(!confirm('Start OTA update from:\\n'+url+'\\n\\nThe device will download and install the new firmware.')){return;}"
+        "const resultDiv=document.getElementById('ota_result');"
+        "const progressDiv=document.getElementById('ota_progress');"
+        "resultDiv.style.display='block';resultDiv.innerHTML='<div style=\"background:#d1ecf1;padding:10px;border-radius:4px;color:#0c5460\">Starting OTA update...</div>';"
+        "progressDiv.style.display='block';"
+        "fetch('/api/ota/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url})})"
+        ".then(r=>r.json()).then(data=>{"
+        "if(data.status==='success'||data.status==='started'){"
+        "resultDiv.innerHTML='<div style=\"background:#d4edda;padding:10px;border-radius:4px;color:#155724\">OTA update started. Please wait...</div>';"
+        "pollOtaProgress();"
+        "}else{"
+        "resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">ERROR: '+(data.message||'Failed to start OTA')+'</div>';"
+        "progressDiv.style.display='none';"
+        "}"
+        "}).catch(e=>{"
+        "resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">NETWORK ERROR: '+e.message+'</div>';"
+        "progressDiv.style.display='none';});}"
+        "function pollOtaProgress(){"
+        "const progressBar=document.getElementById('ota_progress_bar');"
+        "const progressText=document.getElementById('ota_progress_text');"
+        "const resultDiv=document.getElementById('ota_result');"
+        "const progressDiv=document.getElementById('ota_progress');"
+        "fetch('/api/ota/status').then(r=>r.json()).then(data=>{"
+        "const pct=data.progress||0;"
+        "progressBar.style.width=pct+'%';progressText.textContent=pct+'%';"
+        "if(data.state==='downloading'||data.state==='in_progress'){"
+        "setTimeout(pollOtaProgress,1000);"
+        "}else if(data.state==='completed'||data.state==='pending_verify'){"
+        "progressBar.style.width='100%';progressText.textContent='100%';"
+        "resultDiv.innerHTML='<div style=\"background:#d4edda;padding:10px;border-radius:4px;color:#155724\">OTA update completed! Please confirm the update and reboot.</div>';"
+        "}else if(data.state==='failed'){"
+        "resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">OTA FAILED: '+(data.error||'Unknown error')+'</div>';"
+        "progressDiv.style.display='none';"
+        "}else{refreshOtaStatus();}"
+        "}).catch(e=>{setTimeout(pollOtaProgress,2000);});}"
+        "function uploadOtaFile(){"
+        "const fileInput=document.getElementById('ota_file');"
+        "if(!fileInput.files||!fileInput.files[0]){alert('Please select a firmware file');return;}"
+        "const file=fileInput.files[0];"
+        "if(!file.name.endsWith('.bin')){alert('Please select a .bin firmware file');return;}"
+        "if(!confirm('Upload firmware file:\\n'+file.name+' ('+Math.round(file.size/1024)+' KB)\\n\\nProceed with OTA update?')){return;}"
+        "const formData=new FormData();formData.append('firmware',file);"
+        "const resultDiv=document.getElementById('ota_result');"
+        "const progressDiv=document.getElementById('ota_upload_progress');"
+        "const progressBar=document.getElementById('ota_upload_bar');"
+        "const progressText=document.getElementById('ota_upload_text');"
+        "resultDiv.style.display='block';resultDiv.innerHTML='<div style=\"background:#d1ecf1;padding:10px;border-radius:4px;color:#0c5460\">Uploading firmware...</div>';"
+        "progressDiv.style.display='block';"
+        "const xhr=new XMLHttpRequest();"
+        "xhr.upload.onprogress=function(e){if(e.lengthComputable){const pct=Math.round((e.loaded/e.total)*100);progressBar.style.width=pct+'%';progressText.textContent=pct+'%';}};"
+        "xhr.onload=function(){"
+        "if(xhr.status===200){"
+        "const data=JSON.parse(xhr.responseText);"
+        "if(data.status==='success'){"
+        "resultDiv.innerHTML='<div style=\"background:#d4edda;padding:10px;border-radius:4px;color:#155724\">Firmware uploaded successfully! Please confirm and reboot.</div>';"
+        "}else{resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">ERROR: '+(data.message||'Upload failed')+'</div>';}"
+        "}else{resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">HTTP ERROR: '+xhr.status+'</div>';}"
+        "};"
+        "xhr.onerror=function(){resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">Network error during upload</div>';};"
+        "xhr.open('POST','/api/ota/upload',true);xhr.send(formData);}"
+        "function confirmOta(){"
+        "if(!confirm('Confirm the current firmware as valid?\\n\\nThis makes the update permanent.')){return;}"
+        "const resultDiv=document.getElementById('ota_result');"
+        "resultDiv.style.display='block';resultDiv.innerHTML='<div style=\"background:#d1ecf1;padding:10px;border-radius:4px;color:#0c5460\">Confirming update...</div>';"
+        "fetch('/api/ota/confirm',{method:'POST'}).then(r=>r.json()).then(data=>{"
+        "if(data.status==='success'){"
+        "resultDiv.innerHTML='<div style=\"background:#d4edda;padding:10px;border-radius:4px;color:#155724\">Firmware confirmed! Update is now permanent.</div>';"
+        "refreshOtaStatus();"
+        "}else{resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">ERROR: '+(data.message||'Confirm failed')+'</div>';}"
+        "}).catch(e=>{resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">NETWORK ERROR: '+e.message+'</div>';});}"
+        "function cancelOta(){"
+        "if(!confirm('Cancel the pending OTA update?')){return;}"
+        "const resultDiv=document.getElementById('ota_result');"
+        "resultDiv.style.display='block';resultDiv.innerHTML='<div style=\"background:#d1ecf1;padding:10px;border-radius:4px;color:#0c5460\">Cancelling update...</div>';"
+        "fetch('/api/ota/cancel',{method:'POST'}).then(r=>r.json()).then(data=>{"
+        "if(data.status==='success'){"
+        "resultDiv.innerHTML='<div style=\"background:#d4edda;padding:10px;border-radius:4px;color:#155724\">OTA update cancelled.</div>';"
+        "document.getElementById('ota_progress').style.display='none';"
+        "document.getElementById('ota_upload_progress').style.display='none';"
+        "refreshOtaStatus();"
+        "}else{resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">ERROR: '+(data.message||'Cancel failed')+'</div>';}"
+        "}).catch(e=>{resultDiv.innerHTML='<div style=\"background:#f8d7da;padding:10px;border-radius:4px;color:#721c24\">NETWORK ERROR: '+e.message+'</div>';});}"
+        "function rebootDevice(){"
+        "if(!confirm('Reboot the device now?\\n\\nThe device will restart and may take a minute to come back online.')){return;}"
+        "const resultDiv=document.getElementById('ota_result');"
+        "resultDiv.style.display='block';resultDiv.innerHTML='<div style=\"background:#fff3cd;padding:10px;border-radius:4px;color:#856404\">Rebooting device...</div>';"
+        "fetch('/api/ota/reboot',{method:'POST'}).then(r=>r.json()).then(data=>{"
+        "resultDiv.innerHTML='<div style=\"background:#d4edda;padding:10px;border-radius:4px;color:#155724\">Reboot command sent. Device is restarting...</div>';"
+        "setTimeout(function(){location.reload();},30000);"
+        "}).catch(e=>{resultDiv.innerHTML='<div style=\"background:#d1ecf1;padding:10px;border-radius:4px;color:#0c5460\">Device is rebooting. Page will refresh shortly...</div>';setTimeout(function(){location.reload();},30000);});}"
         "function showSensorSubMenu(menuType) {"
         "const regularSensors = document.getElementById('regular-sensors-list');"
         "const waterQualitySensors = document.getElementById('water-quality-sensors-list');"
@@ -5453,6 +5557,74 @@ static esp_err_t config_page_handler(httpd_req_t *req)
         "<li><strong>Holding Registers:</strong> Read/Write registers used for device configuration and control</li>"
         "<li><strong>Values:</strong> All values are 16-bit unsigned integers (0-65535)</li>"
         "<li><strong>Industrial Safety:</strong> Verify register addresses and values before writing to avoid equipment damage</li>"
+        "</ul>"
+        "</div>"
+        "</div>"
+    );
+
+    // OTA Update section
+    httpd_resp_sendstr_chunk(req,
+        "<div id='ota' class='section'>"
+        "<h2 class='section-title'><i>⬆️</i>OTA Firmware Update</h2>"
+        ""
+        "<div class='sensor-card'>"
+        "<h3>Current Firmware Status</h3>"
+        "<p><strong>Version:</strong> <span id='ota_current_version'>Loading...</span></p>"
+        "<p><strong>Partition:</strong> <span id='ota_current_partition'>Loading...</span></p>"
+        "<p><strong>OTA Status:</strong> <span id='ota_status'>Loading...</span></p>"
+        "<p><strong>Last Update:</strong> <span id='ota_last_update'>Never</span></p>"
+        "<button onclick='refreshOtaStatus()' class='btn' style='background:var(--color-secondary);color:white;width:auto;min-width:150px;margin-top:10px'>Refresh Status</button>"
+        "</div>"
+        ""
+        "<div class='sensor-card'>"
+        "<h3>Update from URL</h3>"
+        "<p>Enter the URL to a firmware binary (.bin) file hosted on a web server.</p>"
+        "<div class='form-grid'>"
+        "<label>Firmware URL:</label>"
+        "<input type='text' id='ota_url' placeholder='https://example.com/firmware.bin' style='width:100%'>"
+        "</div>"
+        "<button onclick='startOtaUpdate()' class='btn' style='background:var(--color-primary);color:white;width:auto;min-width:200px;margin-top:10px'>Start OTA Update</button>"
+        "<div id='ota_progress' style='margin-top:15px;display:none'>"
+        "<div style='background:#e0e0e0;border-radius:10px;height:20px;overflow:hidden'>"
+        "<div id='ota_progress_bar' style='background:var(--color-primary);height:100%;width:0%;transition:width 0.3s'></div>"
+        "</div>"
+        "<p id='ota_progress_text' style='text-align:center;margin-top:5px'>0%</p>"
+        "</div>"
+        "</div>"
+        ""
+        "<div class='sensor-card'>"
+        "<h3>Upload Firmware File</h3>"
+        "<p>Upload a firmware binary (.bin) file directly from your computer.</p>"
+        "<input type='file' id='ota_file' accept='.bin' style='margin:10px 0'>"
+        "<br>"
+        "<button onclick='uploadOtaFile()' class='btn' style='background:var(--color-success);color:white;width:auto;min-width:200px'>Upload Firmware</button>"
+        "<div id='ota_upload_progress' style='margin-top:15px;display:none'>"
+        "<div style='background:#e0e0e0;border-radius:10px;height:20px;overflow:hidden'>"
+        "<div id='ota_upload_bar' style='background:var(--color-success);height:100%;width:0%;transition:width 0.3s'></div>"
+        "</div>"
+        "<p id='ota_upload_text' style='text-align:center;margin-top:5px'>0%</p>"
+        "</div>"
+        "</div>"
+        ""
+        "<div class='sensor-card'>"
+        "<h3>OTA Controls</h3>"
+        "<p>After successful update, you must confirm the new firmware or it will rollback on next reboot.</p>"
+        "<div style='display:flex;gap:10px;flex-wrap:wrap'>"
+        "<button onclick='confirmOta()' class='btn' style='background:var(--color-success);color:white;width:auto;min-width:150px'>Confirm Update</button>"
+        "<button onclick='cancelOta()' class='btn' style='background:var(--color-warning);color:white;width:auto;min-width:150px'>Cancel Update</button>"
+        "<button onclick='rebootDevice()' class='btn' style='background:var(--color-danger);color:white;width:auto;min-width:150px'>Reboot Device</button>"
+        "</div>"
+        "<div id='ota_result' style='margin-top:15px;padding:15px;background:var(--color-bg-secondary);border-radius:var(--radius-md);display:none'></div>"
+        "</div>"
+        ""
+        "<div class='sensor-card'>"
+        "<h3>OTA Update Notes</h3>"
+        "<ul style='margin:10px 0;padding-left:20px'>"
+        "<li><strong>Dual Partition:</strong> ESP32 uses A/B partitioning - updates are written to inactive partition</li>"
+        "<li><strong>Rollback:</strong> If new firmware fails, device automatically rolls back to previous version</li>"
+        "<li><strong>Confirm Required:</strong> You must confirm the update after successful boot to make it permanent</li>"
+        "<li><strong>HTTPS Recommended:</strong> Use HTTPS URLs for secure firmware downloads</li>"
+        "<li><strong>Backup:</strong> Always test new firmware thoroughly before deploying to production</li>"
         "</ul>"
         "</div>"
         "</div>"
@@ -10684,176 +10856,115 @@ esp_err_t web_config_start_ap_mode(void)
 }
 
 // Configuration management functions
+// Core config structure (without sensors array) for NVS storage
+// This keeps the blob size under NVS limits (~4000 bytes max per blob)
+typedef struct {
+    network_mode_t network_mode;
+    char wifi_ssid[32];
+    char wifi_password[64];
+    sim_module_config_t sim_config;
+    char azure_hub_fqdn[128];
+    char azure_device_id[32];
+    char azure_device_key[128];
+    int telemetry_interval;
+    int sensor_count;  // Number of sensors to load
+    sd_card_config_t sd_config;
+    rtc_config_t rtc_config;
+    telegram_config_t telegram_config;
+    bool config_complete;
+    bool modem_reset_enabled;
+    int modem_boot_delay;
+    int modem_reset_gpio_pin;
+    int trigger_gpio_pin;
+} core_config_t;
+
 esp_err_t config_load_from_nvs(system_config_t *config)
 {
     nvs_handle_t nvs_handle;
-    esp_err_t err = nvs_open("config", NVS_READONLY, &nvs_handle);
+    esp_err_t err;
+
+    // Initialize config to defaults first
+    config_reset_to_defaults();
+
+    err = nvs_open("config", NVS_READONLY, &nvs_handle);
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "Failed to open NVS handle: %s", esp_err_to_name(err));
-        config_reset_to_defaults();
+        ESP_LOGW(TAG, "Failed to open NVS handle: %s - using defaults", esp_err_to_name(err));
         return err;
     }
 
-    size_t required_size = sizeof(system_config_t);
-    size_t stored_size = 0;
+    // Try loading new split format first (core + individual sensors)
+    core_config_t core;
+    size_t core_size = sizeof(core_config_t);
+    err = nvs_get_blob(nvs_handle, "sys_core", &core, &core_size);
 
-    // First check the stored blob size
-    err = nvs_get_blob(nvs_handle, "system", NULL, &stored_size);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "[NVS_LOAD] Stored blob size: %d bytes, Expected: %d bytes",
-                 stored_size, sizeof(system_config_t));
+        // New split format found - load core config
+        ESP_LOGI(TAG, "[NVS_LOAD] Loading split config format (core + sensors)");
 
-        // Handle struct size mismatch (firmware upgrade/downgrade)
-        if (stored_size != sizeof(system_config_t)) {
-            ESP_LOGW(TAG, "[NVS_LOAD] ⚠️ Struct size mismatch! Stored: %d, Expected: %d",
-                     stored_size, sizeof(system_config_t));
+        config->network_mode = core.network_mode;
+        memcpy(config->wifi_ssid, core.wifi_ssid, sizeof(config->wifi_ssid));
+        memcpy(config->wifi_password, core.wifi_password, sizeof(config->wifi_password));
+        memcpy(&config->sim_config, &core.sim_config, sizeof(sim_module_config_t));
+        memcpy(config->azure_hub_fqdn, core.azure_hub_fqdn, sizeof(config->azure_hub_fqdn));
+        memcpy(config->azure_device_id, core.azure_device_id, sizeof(config->azure_device_id));
+        memcpy(config->azure_device_key, core.azure_device_key, sizeof(config->azure_device_key));
+        config->telemetry_interval = core.telemetry_interval;
+        config->sensor_count = core.sensor_count;
+        memcpy(&config->sd_config, &core.sd_config, sizeof(sd_card_config_t));
+        memcpy(&config->rtc_config, &core.rtc_config, sizeof(rtc_config_t));
+        memcpy(&config->telegram_config, &core.telegram_config, sizeof(telegram_config_t));
+        config->config_complete = core.config_complete;
+        config->modem_reset_enabled = core.modem_reset_enabled;
+        config->modem_boot_delay = core.modem_boot_delay;
+        config->modem_reset_gpio_pin = core.modem_reset_gpio_pin;
+        config->trigger_gpio_pin = core.trigger_gpio_pin;
 
-            // Zero out the config first
-            memset(config, 0, sizeof(system_config_t));
-
-            // Read the smaller of the two sizes to preserve what we can
-            size_t read_size = (stored_size < sizeof(system_config_t)) ? stored_size : sizeof(system_config_t);
-            err = nvs_get_blob(nvs_handle, "system", config, &read_size);
-
-            if (err == ESP_OK) {
-                ESP_LOGI(TAG, "[NVS_LOAD] ✅ Partial config loaded (%d bytes), preserving existing settings", read_size);
-                ESP_LOGI(TAG, "[NVS_LOAD] config_complete = %s, network_mode = %d, sensor_count = %d",
-                         config->config_complete ? "TRUE" : "FALSE", config->network_mode, config->sensor_count);
-
-                // Re-save with new struct size to fix the mismatch
-                nvs_close(nvs_handle);
-                ESP_LOGI(TAG, "[NVS_LOAD] 🔄 Re-saving config with updated struct size...");
-                config_save_to_nvs(config);
-                return ESP_OK;
-            } else {
-                ESP_LOGE(TAG, "[NVS_LOAD] Failed to load partial config: %s", esp_err_to_name(err));
-                config_reset_to_defaults();
-                nvs_close(nvs_handle);
-                return err;
+        // Load individual sensors
+        for (int i = 0; i < config->sensor_count && i < 20; i++) {
+            char key[24];
+            snprintf(key, sizeof(key), "sensor_%d", i);
+            size_t sensor_size = sizeof(sensor_config_t);
+            err = nvs_get_blob(nvs_handle, key, &config->sensors[i], &sensor_size);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "[NVS_LOAD] Failed to load %s: %s", key, esp_err_to_name(err));
+                config->sensors[i].enabled = false;
             }
         }
+
+        ESP_LOGI(TAG, "[NVS_LOAD] Config loaded - complete=%s, mode=%d, sensors=%d",
+                 config->config_complete ? "TRUE" : "FALSE", config->network_mode, config->sensor_count);
+        nvs_close(nvs_handle);
+        return ESP_OK;
     }
 
-    err = nvs_get_blob(nvs_handle, "system", config, &required_size);
-    if (err != ESP_OK) {
-        ESP_LOGW(TAG, "Failed to load config from NVS: %s", esp_err_to_name(err));
-        config_reset_to_defaults();
-    } else {
-        ESP_LOGI(TAG, "[NVS_LOAD] Configuration loaded from NVS - config_complete = %s, network_mode = %d",
-                 config->config_complete ? "TRUE" : "FALSE", config->network_mode);
-        
-        // Migrate old format data type names to new format
-        bool migration_needed = false;
-        for (int i = 0; i < config->sensor_count; i++) {
-            char *data_type = config->sensors[i].data_type;
-            
-            // Migrate FLOAT32 formats
-            if (strcmp(data_type, "FLOAT32_ABCD") == 0) {
-                strncpy(data_type, "FLOAT32_1234", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: FLOAT32_ABCD -> FLOAT32_1234", i);
-            } else if (strcmp(data_type, "FLOAT32_DCBA") == 0) {
-                strncpy(data_type, "FLOAT32_4321", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: FLOAT32_DCBA -> FLOAT32_4321", i);
-            } else if (strcmp(data_type, "FLOAT32_BADC") == 0) {
-                strncpy(data_type, "FLOAT32_2143", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: FLOAT32_BADC -> FLOAT32_2143", i);
-            } else if (strcmp(data_type, "FLOAT32_CDAB") == 0) {
-                strncpy(data_type, "FLOAT32_3412", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: FLOAT32_CDAB -> FLOAT32_3412", i);
-            }
-            // Migrate INT32 formats
-            else if (strcmp(data_type, "INT32_ABCD") == 0) {
-                strncpy(data_type, "INT32_1234", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: INT32_ABCD -> INT32_1234", i);
-            } else if (strcmp(data_type, "INT32_DCBA") == 0) {
-                strncpy(data_type, "INT32_4321", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: INT32_DCBA -> INT32_4321", i);
-            } else if (strcmp(data_type, "INT32_BADC") == 0) {
-                strncpy(data_type, "INT32_2143", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: INT32_BADC -> INT32_2143", i);
-            } else if (strcmp(data_type, "INT32_CDAB") == 0) {
-                strncpy(data_type, "INT32_3412", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: INT32_CDAB -> INT32_3412", i);
-            }
-            // Migrate UINT32 formats
-            else if (strcmp(data_type, "UINT32_ABCD") == 0) {
-                strncpy(data_type, "UINT32_1234", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: UINT32_ABCD -> UINT32_1234", i);
-            } else if (strcmp(data_type, "UINT32_DCBA") == 0) {
-                strncpy(data_type, "UINT32_4321", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: UINT32_DCBA -> UINT32_4321", i);
-            } else if (strcmp(data_type, "UINT32_BADC") == 0) {
-                strncpy(data_type, "UINT32_2143", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: UINT32_BADC -> UINT32_2143", i);
-            } else if (strcmp(data_type, "UINT32_CDAB") == 0) {
-                strncpy(data_type, "UINT32_3412", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: UINT32_CDAB -> UINT32_3412", i);
-            }
-            // Migrate 16-bit formats
-            else if (strcmp(data_type, "UINT16_BE") == 0) {
-                strncpy(data_type, "UINT16_HI", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: UINT16_BE -> UINT16_HI", i);
-            } else if (strcmp(data_type, "UINT16_LE") == 0) {
-                strncpy(data_type, "UINT16_LO", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: UINT16_LE -> UINT16_LO", i);
-            } else if (strcmp(data_type, "INT16_BE") == 0) {
-                strncpy(data_type, "INT16_HI", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: INT16_BE -> INT16_HI", i);
-            } else if (strcmp(data_type, "INT16_LE") == 0) {
-                strncpy(data_type, "INT16_LO", sizeof(config->sensors[i].data_type) - 1);
-                data_type[sizeof(config->sensors[i].data_type) - 1] = '\0';
-                migration_needed = true;
-                ESP_LOGI(TAG, "Migrated sensor %d: INT16_LE -> INT16_LO", i);
-            }
-        }
-        
-        // Save migrated configuration if changes were made
-        if (migration_needed) {
-            ESP_LOGI(TAG, "Saving migrated configuration to NVS");
+    // Try loading old monolithic format for backwards compatibility
+    size_t stored_size = 0;
+    err = nvs_get_blob(nvs_handle, "system", NULL, &stored_size);
+    if (err == ESP_OK && stored_size > 0) {
+        ESP_LOGI(TAG, "[NVS_LOAD] Found old format config (%d bytes), migrating...", stored_size);
+
+        // Try to load old format
+        size_t read_size = (stored_size < sizeof(system_config_t)) ? stored_size : sizeof(system_config_t);
+        err = nvs_get_blob(nvs_handle, "system", config, &read_size);
+
+        if (err == ESP_OK) {
+            ESP_LOGI(TAG, "[NVS_LOAD] Old config loaded, will migrate to split format on next save");
             nvs_close(nvs_handle);
+
+            // Migrate to new format by saving
             config_save_to_nvs(config);
             return ESP_OK;
         }
     }
-    
+
+    ESP_LOGW(TAG, "[NVS_LOAD] No valid config found, using defaults");
     nvs_close(nvs_handle);
-    return err;
+    return ESP_ERR_NVS_NOT_FOUND;
 }
 
 esp_err_t config_save_to_nvs(const system_config_t *config)
 {
-    // Debug: Log config_complete value being saved
-    ESP_LOGI(TAG, "[NVS_SAVE] config_complete = %s, network_mode = %d, sensor_count = %d",
+    ESP_LOGI(TAG, "[NVS_SAVE] Saving split config - complete=%s, mode=%d, sensors=%d",
              config->config_complete ? "TRUE" : "FALSE",
              config->network_mode,
              config->sensor_count);
@@ -10865,70 +10976,68 @@ esp_err_t config_save_to_nvs(const system_config_t *config)
         return err;
     }
 
-    // First attempt to save configuration
-    err = nvs_set_blob(nvs_handle, "system", config, sizeof(system_config_t));
-    
-    if (err == ESP_ERR_NVS_NOT_ENOUGH_SPACE) {
-        ESP_LOGW(TAG, "[CONFIG] NVS space insufficient (%d bytes needed), attempting cleanup and retry", sizeof(system_config_t));
-        
-        // Strategy 1: Erase the old blob and retry
-        ESP_LOGI(TAG, "🧹 Erasing old configuration blob to free space");
-        nvs_erase_key(nvs_handle, "system");
-        err = nvs_set_blob(nvs_handle, "system", config, sizeof(system_config_t));
-        
-        if (err == ESP_ERR_NVS_NOT_ENOUGH_SPACE) {
-            ESP_LOGW(TAG, "[PROC] Still insufficient space after cleanup, performing NVS defragmentation");
-            nvs_close(nvs_handle);
-            
-            // Strategy 2: Full NVS cleanup and defragmentation
-            ESP_LOGI(TAG, "[DEL] Performing full NVS partition cleanup");
-            err = nvs_flash_erase_partition("nvs");
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "[ERROR] Failed to erase NVS partition: %s", esp_err_to_name(err));
-                return err;
-            }
-            
-            err = nvs_flash_init_partition("nvs");
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "[ERROR] Failed to reinitialize NVS partition: %s", esp_err_to_name(err));
-                return err;
-            }
-            
-            // Retry save after cleanup
-            err = nvs_open("config", NVS_READWRITE, &nvs_handle);
-            if (err == ESP_OK) {
-                ESP_LOGI(TAG, "[PROC] Retrying configuration save after NVS cleanup");
-                err = nvs_set_blob(nvs_handle, "system", config, sizeof(system_config_t));
-                
-                if (err == ESP_ERR_NVS_NOT_ENOUGH_SPACE) {
-                    ESP_LOGE(TAG, "[ERROR] Configuration too large even after NVS cleanup. Size: %d bytes", sizeof(system_config_t));
-                    // Log configuration analysis for debugging
-                    ESP_LOGI(TAG, "[DATA] Config Analysis - Sensors: %d, Total size: %d bytes", config->sensor_count, sizeof(system_config_t));
-                    for (int i = 0; i < config->sensor_count && i < 8; i++) {
-                        if (config->sensors[i].enabled) {
-                            ESP_LOGI(TAG, "   Sensor[%d]: %s (%s) - Sub-sensors: %d", 
-                                    i, config->sensors[i].name, config->sensors[i].sensor_type, config->sensors[i].sub_sensor_count);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
+    // Prepare core config (without sensors array)
+    core_config_t core;
+    memset(&core, 0, sizeof(core_config_t));
+
+    core.network_mode = config->network_mode;
+    memcpy(core.wifi_ssid, config->wifi_ssid, sizeof(core.wifi_ssid));
+    memcpy(core.wifi_password, config->wifi_password, sizeof(core.wifi_password));
+    memcpy(&core.sim_config, &config->sim_config, sizeof(sim_module_config_t));
+    memcpy(core.azure_hub_fqdn, config->azure_hub_fqdn, sizeof(core.azure_hub_fqdn));
+    memcpy(core.azure_device_id, config->azure_device_id, sizeof(core.azure_device_id));
+    memcpy(core.azure_device_key, config->azure_device_key, sizeof(core.azure_device_key));
+    core.telemetry_interval = config->telemetry_interval;
+    core.sensor_count = config->sensor_count;
+    memcpy(&core.sd_config, &config->sd_config, sizeof(sd_card_config_t));
+    memcpy(&core.rtc_config, &config->rtc_config, sizeof(rtc_config_t));
+    memcpy(&core.telegram_config, &config->telegram_config, sizeof(telegram_config_t));
+    core.config_complete = config->config_complete;
+    core.modem_reset_enabled = config->modem_reset_enabled;
+    core.modem_boot_delay = config->modem_boot_delay;
+    core.modem_reset_gpio_pin = config->modem_reset_gpio_pin;
+    core.trigger_gpio_pin = config->trigger_gpio_pin;
+
+    // Save core config (~700 bytes, well under NVS limit)
+    err = nvs_set_blob(nvs_handle, "sys_core", &core, sizeof(core_config_t));
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "[ERROR] Failed to save config to NVS: %s", esp_err_to_name(err));
-        
-        // Log NVS statistics for debugging
-        nvs_stats_t nvs_stats;
-        if (nvs_get_stats(NULL, &nvs_stats) == ESP_OK) {
-            ESP_LOGI(TAG, "[STATS] NVS Stats - Used: %d, Free: %d, Total: %d entries", 
-                     nvs_stats.used_entries, nvs_stats.free_entries, nvs_stats.total_entries);
-        }
-    } else {
-        ESP_LOGI(TAG, "[OK] Configuration saved to NVS successfully (%d bytes)", sizeof(system_config_t));
-        nvs_commit(nvs_handle);
+        ESP_LOGE(TAG, "[NVS_SAVE] Failed to save core config: %s", esp_err_to_name(err));
+        nvs_close(nvs_handle);
+        return err;
     }
-    
+    ESP_LOGI(TAG, "[NVS_SAVE] Core config saved (%d bytes)", sizeof(core_config_t));
+
+    // Save each sensor individually (~1500 bytes each, under NVS limit)
+    int sensors_saved = 0;
+    for (int i = 0; i < config->sensor_count && i < 20; i++) {
+        char key[24];
+        snprintf(key, sizeof(key), "sensor_%d", i);
+
+        err = nvs_set_blob(nvs_handle, key, &config->sensors[i], sizeof(sensor_config_t));
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "[NVS_SAVE] Failed to save %s: %s", key, esp_err_to_name(err));
+        } else {
+            sensors_saved++;
+        }
+    }
+
+    // Clean up old sensor entries if sensor count decreased
+    for (int i = config->sensor_count; i < 20; i++) {
+        char key[24];
+        snprintf(key, sizeof(key), "sensor_%d", i);
+        nvs_erase_key(nvs_handle, key);  // Ignore errors - key may not exist
+    }
+
+    // Remove old monolithic format if it exists
+    nvs_erase_key(nvs_handle, "system");
+
+    err = nvs_commit(nvs_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "[NVS_SAVE] Failed to commit: %s", esp_err_to_name(err));
+    } else {
+        ESP_LOGI(TAG, "[NVS_SAVE] Config saved successfully (core + %d sensors)", sensors_saved);
+    }
+
     nvs_close(nvs_handle);
     return err;
 }
