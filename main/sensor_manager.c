@@ -563,10 +563,12 @@ esp_err_t sensor_read_single(const sensor_config_t *sensor, sensor_reading_t *re
         reading->valid = true;
         reading->raw_value = test_result.raw_value;
         strncpy(reading->raw_hex, test_result.raw_hex, sizeof(reading->raw_hex) - 1);
-        strcpy(reading->data_source, "modbus_rs485");
+        strncpy(reading->data_source, "modbus_rs485", sizeof(reading->data_source) - 1);
+        reading->data_source[sizeof(reading->data_source) - 1] = '\0';
     } else {
         reading->valid = false;
-        strcpy(reading->data_source, "error");
+        strncpy(reading->data_source, "error", sizeof(reading->data_source) - 1);
+        reading->data_source[sizeof(reading->data_source) - 1] = '\0';
         ESP_LOGE(TAG, "Failed to read sensor %s: %s", reading->unit_id, test_result.error_message);
     }
 
@@ -674,16 +676,18 @@ esp_err_t sensor_read_quality(const sensor_config_t *sensor, sensor_reading_t *r
     if (any_success) {
         reading->valid = true;
         reading->value = reading->quality_params.ph_value; // Use pH as primary value
-        strcpy(reading->data_source, "modbus_rs485_multi");
-        ESP_LOGI(TAG, "Water Quality Sensor %s: pH=%.2f, TDS=%.2f, Temp=%.2fdegC, Humidity=%.2f%%, TSS=%.2f, BOD=%.2f, COD=%.2f", 
-                 reading->unit_id, 
+        strncpy(reading->data_source, "modbus_rs485_multi", sizeof(reading->data_source) - 1);
+        reading->data_source[sizeof(reading->data_source) - 1] = '\0';
+        ESP_LOGI(TAG, "Water Quality Sensor %s: pH=%.2f, TDS=%.2f, Temp=%.2fdegC, Humidity=%.2f%%, TSS=%.2f, BOD=%.2f, COD=%.2f",
+                 reading->unit_id,
                  reading->quality_params.ph_value, reading->quality_params.tds_value,
                  reading->quality_params.temp_value, reading->quality_params.humidity_value,
                  reading->quality_params.tss_value, reading->quality_params.bod_value,
                  reading->quality_params.cod_value);
     } else {
         reading->valid = false;
-        strcpy(reading->data_source, "error");
+        strncpy(reading->data_source, "error", sizeof(reading->data_source) - 1);
+        reading->data_source[sizeof(reading->data_source) - 1] = '\0';
         ESP_LOGE(TAG, "All sub-sensors failed for water quality sensor %s", reading->unit_id);
     }
 

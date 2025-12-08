@@ -177,6 +177,12 @@ static esp_err_t ppp_output_callback(void *ctx, void *data, size_t len) {
 // UART receive task - feeds data from modem to PPP stack
 static void uart_rx_task(void *pvParameters) {
     uint8_t *data = (uint8_t*)malloc(2048);
+    if (data == NULL) {
+        ESP_LOGE(TAG, "[PPP] Failed to allocate UART RX buffer - task cannot start");
+        uart_rx_task_handle = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
     uart_rx_task_running = true;
 
     ESP_LOGI(TAG, "UART RX task started");
