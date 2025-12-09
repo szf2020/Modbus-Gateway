@@ -40,7 +40,7 @@ esp_err_t convert_modbus_data(uint16_t *registers, int reg_count,
         actual_byte_order = "LITTLE_ENDIAN";  // 4321 = DCBA = LITTLE_ENDIAN
     } else if (strstr(data_type, "INT32_3412") || strstr(data_type, "UINT32_3412")) {
         actual_data_type = strstr(data_type, "UINT32") ? "UINT32" : "INT32";
-        actual_byte_order = "BIG_ENDIAN";     // 3412 = CDAB = BIG_ENDIAN
+        actual_byte_order = "LITTLE_ENDIAN";  // 3412 = DCBA (word swap) = reg[1]<<16 | reg[0]
     } else if (strstr(data_type, "INT32_2143") || strstr(data_type, "UINT32_2143")) {
         actual_data_type = strstr(data_type, "UINT32") ? "UINT32" : "INT32";
         actual_byte_order = "MIXED_BADC";     // 2143 = BADC = MIXED_BADC
@@ -55,7 +55,7 @@ esp_err_t convert_modbus_data(uint16_t *registers, int reg_count,
         actual_byte_order = "LITTLE_ENDIAN";  // 4321 = DCBA
     } else if (strstr(data_type, "FLOAT32_3412")) {
         actual_data_type = "FLOAT32";
-        actual_byte_order = "BIG_ENDIAN";     // 3412 = CDAB
+        actual_byte_order = "LITTLE_ENDIAN";  // 3412 = DCBA (word swap)
     } else if (strstr(data_type, "FLOAT32_2143")) {
         actual_data_type = "FLOAT32";
         actual_byte_order = "MIXED_BADC";     // 2143 = BADC

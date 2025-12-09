@@ -943,9 +943,8 @@ __attribute__((unused)) static float convert_modbus_data_legacy(uint16_t* regist
             return (float)value;
         }
         else if (strcmp(data_type, "UINT32_CDAB") == 0 || strcmp(data_type, "UINT32_3412") == 0) {
-            // CDAB - Byte swap within words
-            uint32_t value = ((uint32_t)(((registers[0] & 0xFF) << 8) | ((registers[0] >> 8) & 0xFF)) << 16) | 
-                           (((registers[1] & 0xFF) << 8) | ((registers[1] >> 8) & 0xFF));
+            // DCBA - Word swap (reg[1] high, reg[0] low) - same as UINT32_4321
+            uint32_t value = ((uint32_t)registers[1] << 16) | registers[0];
             return (float)value;
         }
         
@@ -965,10 +964,9 @@ __attribute__((unused)) static float convert_modbus_data_legacy(uint16_t* regist
             return (float)value;
         }
         else if (strcmp(data_type, "INT32_CDAB") == 0 || strcmp(data_type, "INT32_3412") == 0) {
-            // CDAB - Byte swap within words
-            uint32_t uvalue = ((uint32_t)(((registers[0] & 0xFF) << 8) | ((registers[0] >> 8) & 0xFF)) << 16) | 
-                            (((registers[1] & 0xFF) << 8) | ((registers[1] >> 8) & 0xFF));
-            return (float)((int32_t)uvalue);
+            // DCBA - Word swap (reg[1] high, reg[0] low) - same as INT32_4321
+            int32_t value = ((int32_t)registers[1] << 16) | registers[0];
+            return (float)value;
         }
         
         // FLOAT32 formats
@@ -991,9 +989,8 @@ __attribute__((unused)) static float convert_modbus_data_legacy(uint16_t* regist
         }
         else if (strcmp(data_type, "FLOAT32_CDAB") == 0 || strcmp(data_type, "FLOAT32_3412") == 0) {
             union { uint32_t i; float f; } converter;
-            // CDAB - Byte swap within words
-            converter.i = ((uint32_t)(((registers[0] & 0xFF) << 8) | ((registers[0] >> 8) & 0xFF)) << 16) | 
-                        (((registers[1] & 0xFF) << 8) | ((registers[1] >> 8) & 0xFF));
+            // DCBA - Word swap (reg[1] high, reg[0] low) - same as FLOAT32_4321
+            converter.i = ((uint32_t)registers[1] << 16) | registers[0];
             return converter.f;
         }
     }
@@ -6258,8 +6255,8 @@ static esp_err_t test_sensor_handler(httpd_req_t *req)
                     // UINT32_4321 (DCBA) - Little endian
                     raw_val32 = ((uint32_t)registers[1] << 16) | registers[0];
                 } else if (strstr(sensor->data_type, "3412") || strstr(sensor->data_type, "CDAB")) {
-                    // UINT32_3412 (CDAB) - Mixed endian
-                    raw_val32 = ((uint32_t)registers[0] << 16) | registers[1];
+                    // UINT32_3412 - Word swap (DCBA) - reg[1] high, reg[0] low
+                    raw_val32 = ((uint32_t)registers[1] << 16) | registers[0];
                 } else if (strstr(sensor->data_type, "2143") || strstr(sensor->data_type, "BADC")) {
                     // UINT32_2143 (BADC) - Mixed byte swap
                     uint16_t reg0_swapped = ((registers[0] & 0xFF) << 8) | ((registers[0] >> 8) & 0xFF);
